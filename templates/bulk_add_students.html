@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Add Students{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Bulk Add Students</h1>
+        <a href="{{ url_for('institution.manage_students') }}" class="btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Students
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <form method="POST" class="max-w-3xl mx-auto">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-2">Instructions</h2>
+                <div class="bg-blue-50 dark:bg-blue-900 text-blue-800 dark:text-blue-200 p-4 rounded-lg">
+                    <p class="mb-2"><i class="fas fa-info-circle mr-1"></i> Enter one student per line in the format: <strong>username,email,password</strong></p>
+                    <p>For example:</p>
+                    <pre class="bg-white dark:bg-gray-700 p-2 rounded mt-2 text-sm">
+john_student,john@example.com,password123
+sarah_smith,sarah@example.com,secure456
+michael_brown,michael@example.com,pass789</pre>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label for="institution_code" class="block mb-2 font-medium">Your Institution Code</label>
+                <input type="text" id="institution_code" value="{{ institution_code }}" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-gray-100 dark:bg-gray-700" readonly>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">All students will be added to your institution automatically</p>
+            </div>
+            
+            <div class="mb-6">
+                <label for="students_data" class="block mb-2 font-medium">Student Data</label>
+                <textarea name="students_data" id="students_data" rows="10" placeholder="username,email,password (one per line)" class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3"></textarea>
+            </div>
+            
+            <div class="flex justify-between">
+                <button type="submit" class="btn bg-green-600 hover:bg-green-700">
+                    <i class="fas fa-user-plus mr-1"></i> Add Students
+                </button>
+                <a href="{{ url_for('institution.manage_students') }}" class="btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Tips for Bulk Import</h2>
+        <ul class="space-y-3 list-disc pl-5">
+            <li>You can prepare your data in Excel or any spreadsheet software, then copy-paste it here.</li>
+            <li>Make sure each username is <strong>unique</strong> across your institution.</li>
+            <li>Email addresses must be valid and not already used by other users.</li>
+            <li>Passwords should be at least 6 characters long.</li>
+            <li>Each line must contain exactly three values separated by commas.</li>
+            <li>All students will be created with <strong>active</strong> status.</li>
+        </ul>
+        
+        <div class="mt-6">
+            <h3 class="font-medium mb-2">Need a template?</h3>
+            <button id="copyTemplateBtn" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                <i class="fas fa-copy mr-1"></i> Copy template to clipboard
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const copyTemplateBtn = document.getElementById('copyTemplateBtn');
+        
+        copyTemplateBtn.addEventListener('click', function() {
+            const template = `student1,student1@example.com,password123
+student2,student2@example.com,password456
+student3,student3@example.com,password789`;
+            
+            navigator.clipboard.writeText(template).then(function() {
+                copyTemplateBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+                setTimeout(function() {
+                    copyTemplateBtn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy template to clipboard';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy template. Please try manually copying from the example above.');
+            });
+        });
+    });
+</script>
+{% endblock %}

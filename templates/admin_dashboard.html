@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Admin Dashboard</h1>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Active Users</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ active_users }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Total Questions</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ total_questions }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Total Quizzes</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ total_quizzes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Institution Stats -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Institution Stats</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Total Institutions:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ institution_stats.total_institutions }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Subscribed Institutions:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ institution_stats.subscribed_institutions }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Active Subscriptions:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ institution_stats.active_subscriptions }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Stats -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Student Stats</h2>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Total Students:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ student_stats.total_students }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Active Students:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ student_stats.active_students }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Inactive Students:</span>
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">{{ student_stats.inactive_students }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column - Recent Activity -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 h-full">
+                <h2 class="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">Recent Activity</h2>
+                
+                {% if recent_activity %}
+                    <div class="space-y-4">
+                        {% for activity in recent_activity %}
+                            <div class="flex items-start p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                                <div class="flex-shrink-0 mr-4">
+                                    {% if activity.type == 'result' %}
+                                        <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-500 dark:text-green-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow">
+                                    <p class="text-gray-800 dark:text-gray-200 font-medium">
+                                        {{ activity.username }} completed a quiz
+                                    </p>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm">
+                                        {{ activity.content }}
+                                    </p>
+                                    <p class="text-gray-500 dark:text-gray-500 text-xs mt-1">
+                                        {{ activity.date.strftime('%d %b, %Y %H:%M') }}
+                                    </p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-8">
+                        <p class="text-gray-500 dark:text-gray-400">No recent activity found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column - Admin Tools -->
+        <div>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">Admin Tools</h2>
+                
+                <div class="space-y-4">
+                    <a href="{{ url_for('admin.manage_questions') }}" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-500 dark:text-blue-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">Manage Questions</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Add, edit or delete questions</p>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('admin.manage_users') }}" class="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-500 dark:text-purple-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">Manage Users</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">View, edit or delete users</p>
+                        </div>
+                    </a>
+                    
+                    <a href="{{ url_for('quiz.quiz') }}" class="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-500 dark:text-green-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">Take a Quiz</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Test the quiz functionality</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">System Status</h2>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Server Time:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium">{{ now.strftime('%d %b, %Y %H:%M') }}</span>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Environment:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium">Development</span>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">System Version:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium">v1.0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Socket.io Script for Real-time Updates -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Connect to the socket.io server
+        const socket = io('/admin');
+        
+        // Listen for new review events
+        socket.on('new_review', function(data) {
+            // You could implement real-time notifications here
+            console.log('New review submitted by', data.username);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} User{% endblock %}
+
+{% block content %}
+<div class="container mx-auto py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">{% if is_edit %}Edit{% else %}Add{% endif %} User</h1>
+        <a href="{{ url_for('admin.manage_users') }}" class="btn-secondary">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Users
+        </a>
+    </div>
+    
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <form method="POST" action="{{ url_for('admin.edit_user', user_id=user_id) if is_edit else url_for('admin.add_user') }}">
+            {{ form.csrf_token }}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="mb-4">
+                    <label for="username" class="block text-sm font-medium mb-2">Username</label>
+                    {{ form.username(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    {% if form.username.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.username.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium mb-2">Email</label>
+                    {{ form.email(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    {% if form.email.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.email.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="role" class="block text-sm font-medium mb-2">Role</label>
+                    {{ form.role(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    {% if form.role.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.role.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="user_type" class="block text-sm font-medium mb-2">User Type</label>
+                    {{ form.user_type(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    {% if form.user_type.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.user_type.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="status" class="block text-sm font-medium mb-2">Status</label>
+                    {{ form.status(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    {% if form.status.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.status.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="password" class="block text-sm font-medium mb-2">Password</label>
+                    {{ form.password(class="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3") }}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {% if is_edit %}Leave blank to keep current password.{% else %}Enter password for new user.{% endif %}
+                    </p>
+                    {% if form.password.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <a href="{{ url_for('admin.manage_users') }}" class="btn-secondary">Cancel</a>
+                {{ form.submit(class="btn bg-indigo-600 hover:bg-indigo-700") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

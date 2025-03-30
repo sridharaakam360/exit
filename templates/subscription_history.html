@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription History</h1>
+        <a href="{{ url_for('user.subscriptions') }}" class="mt-4 md:mt-0 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+            View Available Plans
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+        {% if history %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white dark:bg-gray-800">
+                    <thead>
+                        <tr class="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs leading-normal uppercase">
+                            <th class="py-3 px-6 text-left">Plan</th>
+                            <th class="py-3 px-6 text-left">Start Date</th>
+                            <th class="py-3 px-6 text-left">End Date</th>
+                            <th class="py-3 px-6 text-right">Amount</th>
+                            <th class="py-3 px-6 text-center">Payment Method</th>
+                            <th class="py-3 px-6 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in history %}
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 {% if entry.end_date and entry.end_date >= now %}bg-blue-50 dark:bg-blue-900/20{% endif %}">
+                                <td class="py-3 px-6">
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-gray-100">{{ entry.plan_name }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ entry.description }}</p>
+                                    </div>
+                                </td>
+                                <td class="py-3 px-6 text-gray-700 dark:text-gray-300">
+                                    {{ entry.start_date.strftime('%d %b, %Y') if entry.start_date else 'N/A' }}
+                                </td>
+                                <td class="py-3 px-6 text-gray-700 dark:text-gray-300">
+                                    {{ entry.end_date.strftime('%d %b, %Y') if entry.end_date else 'N/A' }}
+                                </td>
+                                <td class="py-3 px-6 text-right text-gray-700 dark:text-gray-300">
+                                    ₹{{ "%.2f"|format(entry.amount_paid) }}
+                                </td>
+                                <td class="py-3 px-6 text-center text-gray-700 dark:text-gray-300">
+                                    {{ entry.payment_method|title }}
+                                </td>
+                                <td class="py-3 px-6 text-center">
+                                    {% if entry.end_date and entry.end_date >= now %}
+                                        <span class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 py-1 px-2 rounded-full text-xs">
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 py-1 px-2 rounded-full text-xs">
+                                            Expired
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="flex flex-col items-center justify-center py-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">You don't have any subscription history yet.</p>
+                <a href="{{ url_for('user.subscriptions') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">Browse Subscription Plans</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Information Block -->
+    <div class="mt-8 bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
+        <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Subscription Information</h2>
+        
+        <div class="space-y-4 text-sm">
+            <div class="flex">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-1">Automatic Renewal</h3>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Subscriptions are not automatically renewed. You'll need to manually renew your subscription before it expires to maintain uninterrupted access.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-1">Subscription Benefits</h3>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Your subscription gives you access to the specific exams and features included in your chosen plan. Benefits apply immediately after subscription purchase.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-800 dark:text-gray-200 mb-1">Need Help?</h3>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        If you have any questions about your subscription, please contact our support team at <a href="mailto:support@pharmacyprep.com" class="text-blue-600 dark:text-blue-400 hover:underline">support@pharmacyprep.com</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

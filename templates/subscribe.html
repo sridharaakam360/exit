@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-gray-100">Subscribe to {{ plan.name }}</h2>
+    
+    <div class="mb-8 bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
+        <h3 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Plan Details</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 mb-2">
+                    <span class="font-medium">Plan:</span> {{ plan.name }}
+                </p>
+                <p class="text-gray-600 dark:text-gray-400 mb-2">
+                    <span class="font-medium">Duration:</span> {{ plan.duration_days // 30 }} Month{% if plan.duration_days // 30 != 1 %}s{% endif %}
+                </p>
+                <p class="text-gray-600 dark:text-gray-400 mb-2">
+                    <span class="font-medium">Price:</span> ₹{{ plan.price }}
+                </p>
+            </div>
+            <div>
+                <p class="text-gray-600 dark:text-gray-400 mb-2 font-medium">Included Exams:</p>
+                <ul class="list-disc pl-5 text-gray-600 dark:text-gray-400 space-y-1">
+                    {% for exam in plan.exams %}
+                        <li>{{ exam.name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <p class="text-gray-600 dark:text-gray-400">{{ plan.description }}</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('user.subscribe', plan_id=plan.id) }}" class="space-y-6">
+        {{ form.csrf_token }}
+        
+        <input type="hidden" name="plan_id" value="{{ plan.id }}">
+        
+        <div>
+            {{ form.payment_method.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+            <div class="mt-2 space-y-2">
+                {% for subfield in form.payment_method %}
+                    <div class="flex items-center">
+                        {{ subfield(class="h-4 w-4 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 dark:focus:ring-indigo-300 border-gray-300 dark:border-gray-600 rounded") }}
+                        {{ subfield.label(class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% if form.payment_method.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {% for error in form.payment_method.errors %}{{ error }}{% endfor %}
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Payment Information (Mock) -->
+        <div class="p-5 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <h3 class="text-lg font-medium mb-4 text-gray-800 dark:text-gray-200">Payment Information</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="card_number" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Card Number</label>
+                    <input type="text" id="card_number" name="card_number" placeholder="1234 5678 9012 3456" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="expiry" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Expiry Date</label>
+                        <input type="text" id="expiry" name="expiry" placeholder="MM/YY" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label for="cvv" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CVV</label>
+                        <input type="text" id="cvv" name="cvv" placeholder="123" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name on Card</label>
+                    <input type="text" id="name" name="name" placeholder="John Doe" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white">
+                </div>
+            </div>
+            
+            <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <span class="block mb-1">This is a demo application. No actual payment will be processed.</span>
+                <span>You can use any values for testing purposes. All subscription purchases in this demo are simulated.</span>
+            </p>
+        </div>
+
+        <div class="pt-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                By subscribing, you agree to our <a href="#" class="text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</a> and <a href="#" class="text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a>.
+            </p>
+            
+            <div class="flex items-center justify-between">
+                <a href="{{ url_for('user.subscriptions') }}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Cancel</a>
+                
+                {{ form.submit(class="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-indigo-300") }}
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

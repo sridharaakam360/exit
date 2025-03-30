@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Institution Dashboard</h1>
+
+    <!-- Institution Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Institution Information</h2>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Name:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium">{{ institution.name }}</span>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Institution Code:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium select-all">{{ institution.institution_code }}</span>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Subscription:</span>
+                        <span class="text-gray-800 dark:text-gray-200 font-medium">{{ institution.plan_name or 'Not specified' }}</span>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-400">Subscription End:</span>
+                        <span class="{% if institution.subscription_end and institution.subscription_end > now %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %} font-medium">
+                            {{ institution.subscription_end.strftime('%d %b, %Y') if institution.subscription_end else 'Not subscribed' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Plan Details</h2>
+                
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">{{ institution.plan_description or 'No plan description available' }}</p>
+                    
+                    {% if institution.subscription_end and institution.subscription_end < now %}
+                        <div class="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 p-3 rounded-lg mb-4">
+                            <p class="text-sm font-medium">Your subscription has expired. Please renew to continue providing access to your students.</p>
+                        </div>
+                        <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Renew Subscription
+                        </button>
+                    {% elif institution.subscription_end and (institution.subscription_end - now).days <= 30 %}
+                        <div class="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 p-3 rounded-lg mb-4">
+                            <p class="text-sm font-medium">Your subscription will expire in {{ (institution.subscription_end - now).days }} days.</p>
+                        </div>
+                        <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Renew Subscription
+                        </button>
+                    {% elif institution.subscription_end %}
+                        <div class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 p-3 rounded-lg">
+                            <p class="text-sm font-medium">Your subscription is active and in good standing.</p>
+                        </div>
+                    {% else %}
+                        <div class="bg-gray-100 dark:bg-gray-600 text-gray-800 dark:text-gray-200 p-3 rounded-lg">
+                            <p class="text-sm font-medium">No active subscription found.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Total Students</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.student_count or 0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Average Score</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.avg_score or 0 }}%</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 mr-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">Total Quizzes</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ stats.quiz_count or 0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Results -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">Recent Student Results</h2>
+        
+        {% if recent_results %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white dark:bg-gray-800">
+                    <thead>
+                        <tr class="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs leading-normal uppercase">
+                            <th class="py-3 px-6 text-left">Student</th>
+                            <th class="py-3 px-6 text-left">Exam</th>
+                            <th class="py-3 px-6 text-center">Score</th>
+                            <th class="py-3 px-6 text-center">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-600 dark:text-gray-400 text-sm">
+                        {% for result in recent_results %}
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="py-3 px-6 text-left whitespace-nowrap">
+                                    {{ result.username or 'Unknown' }}
+                                </td>
+                                <td class="py-3 px-6 text-left">
+                                    {{ result.exam_name or 'Custom Quiz' }}
+                                </td>
+                                <td class="py-3 px-6 text-center">
+                                    {% if result.score is not none and result.total_questions is not none and result.total_questions > 0 %}
+                                        {% set percentage = (result.score / result.total_questions) * 100 %}
+                                        <span class="{% if percentage >= 70 %}text-green-600 dark:text-green-400
+                                                    {% elif percentage >= 40 %}text-yellow-600 dark:text-yellow-400
+                                                    {% else %}text-red-600 dark:text-red-400
+                                                    {% endif %}">
+                                            {{ result.score }}/{{ result.total_questions }}
+                                            ({{ percentage|round(1) }}%)
+                                        </span>
+                                    {% else %}
+                                        <span class="text-gray-500 dark:text-gray-400">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-6 text-center">
+                                    {{ result.date_taken.strftime('%d %b, %Y %H:%M') if result.date_taken else 'Unknown' }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="flex flex-col items-center justify-center py-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">No quiz results yet.</p>
+                <p class="text-gray-500 dark:text-gray-500">Results will appear here as students take quizzes.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Student Management Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mt-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Student Management</h2>
+            <a href="{{ url_for('institution.manage_students') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                Manage Students
+            </a>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-medium text-lg text-gray-800 dark:text-gray-200 mb-2">Quick Actions</h3>
+                
+                <div class="space-y-4">
+                    <a href="{{ url_for('institution.manage_students') }}" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-500 dark:text-blue-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">Add New Student</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Register a new student to your institution</p>
+                        </div>
+                    </a>
+                    
+                    <a href="#" class="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-500 dark:text-green-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">View Performance</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">See detailed analysis of student performance</p>
+                        </div>
+                    </a>
+                    
+                    <a href="#" class="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-500 dark:text-purple-400 mr-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800 dark:text-gray-200">Export Reports</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Generate and download student reports</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="font-medium text-lg text-gray-800 dark:text-gray-200 mb-2">Share Institution Code</h3>
+                
+                <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+                    <p class="text-gray-600 dark:text-gray-400 mb-3">Share this code with your students to let them join your institution:</p>
+                    
+                    <div class="flex">
+                        <input type="text" value="{{ institution.institution_code }}" readonly class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" id="institution-code">
+                        <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition-colors" id="copy-code-btn">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <h4 class="font-medium text-blue-800 dark:text-blue-300 mb-2">Student Registration Link</h4>
+                    <p class="text-gray-600 dark:text-gray-400 mb-3">Students can register directly using this link:</p>
+                    
+                    <div class="relative">
+                        <input type="text" value="{{ url_for('auth.student_register', _external=True) }}" readonly class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" id="registration-link">
+                        <button type="button" class="absolute right-2 top-1.5 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-xs" id="copy-link-btn">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Copy institution code
+        const copyCodeBtn = document.getElementById('copy-code-btn');
+        const institutionCodeInput = document.getElementById('institution-code');
+        
+        if (copyCodeBtn && institutionCodeInput) {
+            copyCodeBtn.addEventListener('click', function() {
+                institutionCodeInput.select();
+                document.execCommand('copy');
+                
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                this.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                this.classList.add('bg-green-600', 'hover:bg-green-700');
+                
+                setTimeout(() => {
+                    this.textContent = originalText;
+                    this.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    this.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                }, 2000);
+            });
+        }
+        
+        // Copy registration link
+        const copyLinkBtn = document.getElementById('copy-link-btn');
+        const registrationLinkInput = document.getElementById('registration-link');
+        
+        if (copyLinkBtn && registrationLinkInput) {
+            copyLinkBtn.addEventListener('click', function() {
+                registrationLinkInput.select();
+                document.execCommand('copy');
+                
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            });
+        }
+    });
+</script>
+{% endblock %}

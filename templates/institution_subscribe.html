@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Subscribe to {{ plan.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>Current Plan Details</h5>
+                        <p class="mb-1"><strong>Plan Name:</strong> {{ plan.name }}</p>
+                        <p class="mb-1"><strong>Price:</strong> ₹{{ "%.2f"|format(plan.price) }}</p>
+                        <p class="mb-1"><strong>Duration:</strong> {{ plan.duration_months }} months</p>
+                        <p class="mb-1"><strong>Student Range:</strong> {{ plan.student_range }} students</p>
+                        <p class="mb-1"><strong>Current Students:</strong> {{ stats.total_students }}</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Plan Features</h5>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Access to all exam types</li>
+                            <li><i class="fas fa-check text-success"></i> Previous year questions</li>
+                            <li><i class="fas fa-check text-success"></i> Subject-wise practice</li>
+                            <li><i class="fas fa-check text-success"></i> Detailed explanations</li>
+                            <li><i class="fas fa-check text-success"></i> Performance analytics</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5>Accessible Exams</h5>
+                        <ul class="list-unstyled">
+                            {% for exam in plan.exams %}
+                            <li><i class="fas fa-book text-primary"></i> {{ exam.name }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <form method="POST" class="mt-4">
+                        {% if plan.custom_student_range %}
+                        <div class="form-group">
+                            <label for="student_range">Number of Students</label>
+                            <input type="number" class="form-control" id="student_range" name="student_range" 
+                                   min="{{ stats.total_students }}" max="{{ plan.student_range }}"
+                                   value="{{ [stats.total_students + 20, plan.student_range]|min }}" required>
+                            <small class="form-text text-muted">
+                                Recommended: {{ [stats.total_students + 20, plan.student_range]|min }} students
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-credit-card"></i> Subscribe Now
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

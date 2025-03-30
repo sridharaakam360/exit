@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Quiz Generation Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Take a Quiz</h2>
+                <div id="timer" class="hidden text-lg font-semibold text-blue-600 px-4 py-2 bg-blue-100 rounded-full">
+                    Time: <span id="timer-display">00:00</span>
+                </div>
+            </div>
+
+            {% if not questions %}
+            <form method="POST" id="quizForm" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="generate" value="1">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Quiz Type Selection -->
+                    <div class="form-group">
+                        <label for="quiz_type" class="block text-sm font-medium text-gray-700 mb-2">Quiz Type</label>
+                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                                id="quiz_type" name="quiz_type" required>
+                            <option value="previous_year">Previous Year Questions</option>
+                            <option value="subject_wise">Subject-wise Practice</option>
+                        </select>
+                    </div>
+
+                    <!-- Exam Selection -->
+                    <div class="form-group">
+                        <label for="exam_id" class="block text-sm font-medium text-gray-700 mb-2">Select Exam</label>
+                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                                id="exam_id" name="exam_id" required>
+                            <option value="">Choose an exam</option>
+                            {% for exam in accessible_exams %}
+                            <option value="{{ exam.id }}" {% if exam.id|string == request.args.get('exam_id') %}selected{% endif %}>
+                                {{ exam.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Subject Selection -->
+                    <div class="form-group" id="subject_group" style="display: none;">
+                        <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-2">Select Subject</label>
+                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                                id="subject_id" name="subject_id">
+                            <option value="">Choose a subject</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Difficulty Selection -->
+                    <div class="form-group">
+                        <label for="difficulty" class="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
+                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                                id="difficulty" name="difficulty">
+                            <option value="">Any Difficulty</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <!-- Number of Questions -->
+                    <div class="form-group">
+                        <label for="num_questions" class="block text-sm font-medium text-gray-700 mb-2">Number of Questions</label>
+                        <input type="number" class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                               id="num_questions" name="num_questions" min="1" max="50" value="10" required>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <a href="{{ url_for('user.user_dashboard') }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Generate Quiz
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <!-- Quiz Taking Interface -->
+            <form method="POST" class="quiz-form space-y-8">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="time_taken" id="time_taken" value="0">
+                
+                {% for q in questions %}
+                <div class="question bg-gray-50 p-6 rounded-lg shadow-sm">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">
+                        Question {{ loop.index }} of {{ questions|length }}
+                    </h3>
+                    <p class="text-gray-700 mb-4">{{ q.question }}</p>
+                    <div class="space-y-3">
+                        {% for option in ['A', 'B', 'C', 'D'] %}
+                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 cursor-pointer">
+                            <input type="radio" 
+                                   name="question_{{ q.id }}" 
+                                   value="{{ option }}" 
+                                   id="q{{ q.id }}_{{ option.lower() }}" 
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <label for="q{{ q.id }}_{{ option.lower() }}" 
+                                   class="ml-3 block text-sm font-medium text-gray-700">
+                                {{ option }}. {{ q['option_' + option.lower()] }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div class="flex justify-end space-x-4">
+                    <button type="submit" 
+                            class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Submit Quiz
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Timer functionality
+    const timerElement = document.getElementById('timer');
+    const timerDisplay = document.getElementById('timer-display');
+    const timeInput = document.getElementById('time_taken');
+    let startTime = Date.now();
+
+    if (timerElement && timeInput && {{ 'true' if questions else 'false' }}) {
+        timerElement.classList.remove('hidden');
+        
+        function updateTimer() {
+            const seconds = Math.floor((Date.now() - startTime) / 1000);
+            timeInput.value = seconds;
+            
+            const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const remainingSeconds = (seconds % 60).toString().padStart(2, '0');
+            timerDisplay.textContent = `${minutes}:${remainingSeconds}`;
+        }
+        
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    }
+
+    // Quiz form functionality
+    const quizType = document.getElementById('quiz_type');
+    const examSelect = document.getElementById('exam_id');
+    const subjectGroup = document.getElementById('subject_group');
+    const subjectSelect = document.getElementById('subject_id');
+
+    // Function to update subjects based on selected exam
+    function updateSubjects(examId) {
+        if (examId) {
+            window.location.href = `/quiz?exam_id=${examId}`;
+        } else {
+            subjectGroup.style.display = 'none';
+            subjectSelect.value = '';
+        }
+    }
+
+    // Show/hide subject selection based on quiz type
+    quizType.addEventListener('change', function() {
+        if (this.value === 'subject_wise') {
+            subjectGroup.style.display = 'block';
+            if (examSelect.value) {
+                updateSubjects(examSelect.value);
+            }
+        } else {
+            subjectGroup.style.display = 'none';
+            subjectSelect.value = '';
+        }
+    });
+
+    // Update subjects when exam is selected
+    examSelect.addEventListener('change', function() {
+        if (quizType.value === 'subject_wise') {
+            updateSubjects(this.value);
+        }
+    });
+
+    // Initialize subject group visibility based on quiz type
+    if (quizType.value === 'subject_wise') {
+        subjectGroup.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

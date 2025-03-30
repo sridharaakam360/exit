@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-gray-100">Student Login</h2>
+    
+    <form method="POST" action="{{ url_for('auth.student_login') }}" class="space-y-6">
+        {{ form.csrf_token }}
+        
+        <div>
+            {{ form.institution_code.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+            <div class="mt-1">
+                {{ form.institution_code(class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white") }}
+            </div>
+            {% if form.institution_code.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {% for error in form.institution_code.errors %}{{ error }}{% endfor %}
+                </p>
+            {% endif %}
+        </div>
+
+        <div>
+            {{ form.username.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+            <div class="mt-1">
+                {{ form.username(class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white") }}
+            </div>
+            {% if form.username.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {% for error in form.username.errors %}{{ error }}{% endfor %}
+                </p>
+            {% endif %}
+        </div>
+
+        <div>
+            {{ form.password.label(class="block text-sm font-medium text-gray-700 dark:text-gray-300") }}
+            <div class="mt-1">
+                {{ form.password(class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white") }}
+            </div>
+            {% if form.password.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {% for error in form.password.errors %}{{ error }}{% endfor %}
+                </p>
+            {% endif %}
+        </div>
+
+        <div>
+            {{ form.submit(class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-indigo-300") }}
+        </div>
+    </form>
+
+    <div class="mt-6 text-center">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Don't have a student account yet? 
+            <a href="{{ url_for('auth.student_register') }}" class="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">Register as a student</a>
+        </p>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Return to 
+            <a href="{{ url_for('auth.choose_login') }}" class="font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">login selection</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

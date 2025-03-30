@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-6 animate-fade-in">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Edit Question</h2>
+    
+    <form method="POST" class="question-form space-y-5 bg-gray-50 dark:bg-gray-750 p-6 rounded-lg shadow">
+        {{ form.hidden_tag() }}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question</label>
+            {{ form.question(class="w-full dark:bg-gray-700 rounded resize-none h-24", placeholder="Enter the question") }}
+            {% if form.question.errors %}
+                <p class="text-red-500 text-xs italic">{{ form.question.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Option A</label>
+                {{ form.option_a(class="w-full dark:bg-gray-700 rounded", placeholder="Option A") }}
+                {% if form.option_a.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.option_a.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Option B</label>
+                {{ form.option_b(class="w-full dark:bg-gray-700 rounded", placeholder="Option B") }}
+                {% if form.option_b.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.option_b.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Option C</label>
+                {{ form.option_c(class="w-full dark:bg-gray-700 rounded", placeholder="Option C") }}
+                {% if form.option_c.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.option_c.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Option D</label>
+                {{ form.option_d(class="w-full dark:bg-gray-700 rounded", placeholder="Option D") }}
+                {% if form.option_d.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.option_d.errors[0] }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correct Answer</label>
+                {{ form.correct_answer(class="w-full dark:bg-gray-700 rounded") }}
+                {% if form.correct_answer.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.correct_answer.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                {{ form.category(class="w-full dark:bg-gray-700 rounded", placeholder="e.g., Pharmacology") }}
+                {% if form.category.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.category.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Difficulty</label>
+                {{ form.difficulty(class="w-full dark:bg-gray-700 rounded") }}
+                {% if form.difficulty.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.difficulty.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+                {{ form.subject_id(class="w-full dark:bg-gray-700 rounded") }}
+                {% if form.subject_id.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.subject_id.errors[0] }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Previous Year</label>
+                {{ form.previous_year(class="w-full dark:bg-gray-700 rounded", placeholder="e.g., 2023") }}
+                {% if form.previous_year.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.previous_year.errors[0] }}</p>
+                {% endif %}
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Topics</label>
+                {{ form.topics(class="w-full dark:bg-gray-700 rounded", placeholder="Topics (comma-separated)") }}
+                {% if form.topics.errors %}
+                    <p class="text-red-500 text-xs italic">{{ form.topics.errors[0] }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Explanation</label>
+            {{ form.explanation(class="w-full dark:bg-gray-700 rounded resize-none h-24", placeholder="Explanation for the correct answer") }}
+            {% if form.explanation.errors %}
+                <p class="text-red-500 text-xs italic">{{ form.explanation.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="flex items-center">
+            {{ form.is_previous_year(class="mr-2 dark:bg-gray-700") }}
+            <label for="{{ form.is_previous_year.id }}" class="text-sm font-medium text-gray-700 dark:text-gray-300">Mark as Previous Year Question</label>
+            {% if form.is_previous_year.errors %}
+                <p class="text-red-500 text-xs italic">{{ form.is_previous_year.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <button type="submit" class="btn w-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                Update Question
+            </button>
+        </div>
+    </form>
+    
+    <div class="mt-8 flex">
+        <a href="{{ url_for('admin.manage_questions') }}" class="btn-secondary flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Back to Questions
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Quiz Results</h1>
+
+    <!-- Results Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <h3 class="text-lg text-gray-700 dark:text-gray-300 mb-2">Score</h3>
+                <p class="text-3xl font-bold 
+                    {% if score/total >= 0.7 %}text-green-600 dark:text-green-400
+                    {% elif score/total >= 0.5 %}text-yellow-600 dark:text-yellow-400
+                    {% else %}text-red-600 dark:text-red-400{% endif %}">
+                    {{ score }}/{{ total }}
+                </p>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                    {{ ((score/total) * 100) | round(1) }}%
+                </p>
+            </div>
+
+            <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <h3 class="text-lg text-gray-700 dark:text-gray-300 mb-2">Time Taken</h3>
+                <p class="text-3xl font-bold text-gray-800 dark:text-gray-200">
+                    {{ "%02d:%02d"|format(time // 60, time % 60) }}
+                </p>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mt-1">minutes:seconds</p>
+            </div>
+
+            <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <h3 class="text-lg text-gray-700 dark:text-gray-300 mb-2">Exam</h3>
+                <p class="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                    {{ exam_name if exam_name else "Practice Quiz" }}
+                </p>
+            </div>
+
+            <div class="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <h3 class="text-lg text-gray-700 dark:text-gray-300 mb-2">Date</h3>
+                <p class="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                    {{ date_taken.strftime('%d %b, %Y') }}
+                </p>
+                <p class="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                    {{ date_taken.strftime('%H:%M') }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Confetti animation for high scores -->
+        {% if score/total >= 0.8 %}
+        <div class="confetti relative w-full h-12 overflow-hidden mt-4">
+            <!-- Confetti elements added via JavaScript -->
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between items-center mt-6">
+            <a href="{{ url_for('user.user_dashboard') }}" class="btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+            </a>
+            <div class="flex space-x-3">
+                <button id="printResults" class="btn-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Print Results
+                </button>
+                <a href="{{ url_for('quiz.quiz') }}" class="btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Take Another Quiz
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results -->
+    <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6">Detailed Results</h2>
+
+    <div class="space-y-6 mb-8">
+        {% for result in detailed_results %}
+        <div class="question bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all duration-300">
+            <div class="p-6 cursor-pointer">
+                <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">Question {{ loop.index }}</span>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mt-1">{{ result.question }}</h3>
+                    </div>
+                    <div class="flex-shrink-0 ml-4">
+                        {% if result.user_answer == result.correct_answer %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Correct
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Incorrect
+                        </span>
+                        {% endif %}
+                        <span class="expand-icon ml-2 text-gray-400 transition-transform duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-details hidden border-t border-gray-200 dark:border-gray-700">
+                <div class="p-6 bg-gray-50 dark:bg-gray-750">
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Options:</h4>
+                        <ul class="options space-y-2">
+                            {% for key, value in result.options.items() %}
+                            <li class="flex items-start">
+                                <span class="inline-block w-7 flex-shrink-0 font-semibold
+                                    {% if key == result.correct_answer %}text-green-600 dark:text-green-400
+                                    {% elif key == result.user_answer %}text-red-600 dark:text-red-400{% endif %}">
+                                    {{ key }}:
+                                </span>
+                                <span class="ml-2 {% if key == result.correct_answer %}font-semibold text-green-600 dark:text-green-400
+                                    {% elif key == result.user_answer and key != result.correct_answer %}font-semibold text-red-600 dark:text-red-400{% endif %}">
+                                    {{ value }}
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Explanation:</h4>
+                        <div class="bg-white dark:bg-gray-800 p-3 rounded-md text-gray-800 dark:text-gray-200">
+                            {{ result.explanation }}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Subject: {{ result.subject }}</span>
+                        </div>
+                        
+                        {% if not result.already_reviewed %}
+                        <button type="button" 
+                                onclick="document.getElementById('review-form-{{ result.question_id }}').classList.toggle('hidden')"
+                                class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">
+                            Rate this question
+                        </button>
+                        {% else %}
+                        <div class="flex items-center">
+                            <span class="text-sm text-gray-600 dark:text-gray-400 mr-2">Your rating:</span>
+                            <div class="flex">
+                                {% for i in range(1, 6) %}
+                                <span class="{% if i <= result.review.rating %}text-yellow-500{% else %}text-gray-400{% endif %}">★</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Review Form -->
+                    {% if not result.already_reviewed %}
+                    <div id="review-form-{{ result.question_id }}" class="review-form mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 hidden">
+                        <form action="{{ url_for('quiz.review_question', qid=result.question_id) }}" method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-4">
+                                <label for="rating-{{ result.question_id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating:</label>
+                                <select name="rating" id="rating-{{ result.question_id }}" class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm" required>
+                                    <option value="">Select rating</option>
+                                    <option value="5">Excellent (5)</option>
+                                    <option value="4">Very Good (4)</option>
+                                    <option value="3">Good (3)</option>
+                                    <option value="2">Fair (2)</option>
+                                    <option value="1">Poor (1)</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label for="comment-{{ result.question_id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Comment (optional):</label>
+                                <textarea name="comment" id="comment-{{ result.question_id }}" rows="2" class="w-full py-2 px-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white sm:text-sm"></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="btn-secondary py-1 px-3 text-sm">Submit Review</button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Print functionality
+        document.getElementById('printResults').addEventListener('click', function() {
+            window.print();
+        });
+        
+        // Ensure question expansion/collapse works
+        document.querySelectorAll('.question').forEach(question => {
+            question.addEventListener('click', (e) => {
+                // Don't toggle if user is clicking on input, button, etc.
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || 
+                    e.target.tagName === 'BUTTON' || e.target.tagName === 'A' ||
+                    e.target.closest('form')) return;
+                    
+                const details = question.querySelector('.question-details');
+                if (details) {
+                    details.classList.toggle('hidden');
+                    question.classList.toggle('expanded');
+                    
+                    // Change icon rotation
+                    const expandIcon = question.querySelector('.expand-icon');
+                    if (expandIcon) {
+                        expandIcon.style.transform = details.classList.contains('hidden') ? '' : 'rotate(180deg)';
+                    }
+                    
+                    // Scroll into view if expanding and not already visible
+                    if (!details.classList.contains('hidden')) {
+                        setTimeout(() => {
+                            const rect = details.getBoundingClientRect();
+                            if (!(rect.top >= 0 &&
+                                rect.left >= 0 &&
+                                rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                                rect.right <= (window.innerWidth || document.documentElement.clientWidth))) {
+                                details.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }, 100);
+                    }
+                }
+            });
+        });
+        
+        // Add rating previews
+        document.querySelectorAll('select[name="rating"]').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const rating = e.target.value;
+                const preview = select.parentElement.querySelector('.rating-preview') || document.createElement('span');
+                
+                preview.classList.add(
+                    'rating-preview', 
+                    'text-sm', 
+                    'ml-2', 
+                    'inline-block',
+                    'transition-all',
+                    'duration-300'
+                );
+                
+                // Add star rating visualization
+                if (rating) {
+                    const starCount = parseInt(rating);
+                    let stars = '';
+                    for (let i = 0; i < 5; i++) {
+                        stars += i < starCount 
+                            ? '<span class="text-yellow-500">★</span>' 
+                            : '<span class="text-gray-400">☆</span>';
+                    }
+                    preview.innerHTML = stars;
+                } else {
+                    preview.textContent = '';
+                }
+                
+                if (!select.parentElement.querySelector('.rating-preview')) {
+                    select.parentElement.appendChild(preview);
+                }
+            });
+        });
+        
+        // Add confetti animation if score is high (80%+)
+        const confettiContainer = document.querySelector('.confetti');
+        if (confettiContainer) {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                
+                // Random colors
+                const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Random sizes
+                const size = Math.random() * 10 + 5;
+                
+                confetti.classList.add(
+                    'absolute', 
+                    'rounded-full', 
+                    'animate-confetti',
+                    randomColor
+                );
+                
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                confetti.style.left = `${Math.random() * 100}%`;
+                confetti.style.top = '0';
+                confetti.style.animationDelay = `${Math.random() * 2}s`;
+                confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+                
+                confettiContainer.appendChild(confetti);
+            }
+        }
+    });
+</script>
+{% endblock %}

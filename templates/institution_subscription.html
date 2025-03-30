@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Subscription Plans</h1>
+
+    <!-- Current Subscription Status -->
+    {% if current_subscription %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Subscription Status</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">Current Plan</p>
+                <p class="text-lg font-semibold text-gray-800">{{ current_subscription.plan_name }}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">Student Limit</p>
+                <p class="text-lg font-semibold text-gray-800">{{ current_subscription.student_range }}</p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="text-sm text-gray-600">Valid Until</p>
+                <p class="text-lg font-semibold text-gray-800">{{ current_subscription.end_date.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Available Plans -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for plan in plans %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ plan.name }}</h3>
+                <p class="text-3xl font-bold text-blue-600 mb-4">₹{{ plan.price }}</p>
+                <p class="opacity-90">{{ plan.duration_months }} Month{% if plan.duration_months != 1 %}s{% endif %}</p>
+                <p class="text-gray-600 mt-4">{{ plan.description }}</p>
+                
+                <div class="mt-6">
+                    <h4 class="font-semibold text-gray-800 mb-2">Features:</h4>
+                    <ul class="space-y-2">
+                        <li class="flex items-center">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Student Range: {{ plan.student_range }}
+                        </li>
+                        <li class="flex items-center">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Access: {{ plan.degree_access }}
+                        </li>
+                        {% if plan.custom_student_range %}
+                        <li class="flex items-center">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Custom Student Range Available
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <a href="{{ url_for('institution.institution_subscribe', plan_id=plan.id) }}" 
+                   class="mt-6 block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
+                    Select Plan
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 
