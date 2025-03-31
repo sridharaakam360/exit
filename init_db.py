@@ -47,7 +47,7 @@ def init_db():
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
                 price DECIMAL(10,2) NOT NULL,
-                duration_days INT NOT NULL,
+                duration_months INT NOT NULL,
                 description TEXT,
                 degree_access ENUM('Dpharm', 'Bpharm', 'both') NOT NULL,
                 includes_previous_years BOOLEAN DEFAULT TRUE,
@@ -88,7 +88,7 @@ def init_db():
         if cursor.fetchone()['count'] == 0:
             cursor.executemany('''
                 INSERT INTO subscription_plans 
-                (name, price, duration_days, description, degree_access, includes_previous_years, is_institution, student_range, custom_student_range)
+                (name, price, duration_months, description, degree_access, includes_previous_years, is_institution, student_range, custom_student_range)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', plans)
         

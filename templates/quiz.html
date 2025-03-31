@@ -3,194 +3,366 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-4xl mx-auto">
-        <!-- Quiz Generation Form -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Take a Quiz</h2>
-                <div id="timer" class="hidden text-lg font-semibold text-blue-600 px-4 py-2 bg-blue-100 rounded-full">
-                    Time: <span id="timer-display">00:00</span>
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Select Quiz Type</h1>
+            
+            <!-- Quiz Type Selection -->
+            <div class="mb-8">
+                <div class="flex space-x-4">
+                    <button onclick="showQuizForm('previous_year')" 
+                            class="px-6 py-3 rounded-lg {% if quiz_type == 'previous_year' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                        Previous Year Exam
+                    </button>
+                    <button onclick="showQuizForm('subject_wise')" 
+                            class="px-6 py-3 rounded-lg {% if quiz_type == 'subject_wise' %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+                        Subject-wise Quiz
+                    </button>
                 </div>
             </div>
 
-            {% if not questions %}
-            <form method="POST" id="quizForm" class="space-y-6">
+            <!-- Previous Year Quiz Form -->
+            <form id="previous_year_form" method="POST" class="space-y-6 {% if quiz_type != 'previous_year' %}hidden{% endif %}">
+                <input type="hidden" name="quiz_type" value="previous_year">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="generate" value="1">
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Quiz Type Selection -->
-                    <div class="form-group">
-                        <label for="quiz_type" class="block text-sm font-medium text-gray-700 mb-2">Quiz Type</label>
-                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                                id="quiz_type" name="quiz_type" required>
-                            <option value="previous_year">Previous Year Questions</option>
-                            <option value="subject_wise">Subject-wise Practice</option>
-                        </select>
-                    </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Select Exam</label>
+                        <select name="exam_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select an exam</option>
+                                {% for exam in exams %}
+                                <option value="{{ exam.id }}">{{ exam.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                    <!-- Exam Selection -->
-                    <div class="form-group">
-                        <label for="exam_id" class="block text-sm font-medium text-gray-700 mb-2">Select Exam</label>
-                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                                id="exam_id" name="exam_id" required>
-                            <option value="">Choose an exam</option>
-                            {% for exam in accessible_exams %}
-                            <option value="{{ exam.id }}" {% if exam.id|string == request.args.get('exam_id') %}selected{% endif %}>
-                                {{ exam.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Subject Selection -->
-                    <div class="form-group" id="subject_group" style="display: none;">
-                        <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-2">Select Subject</label>
-                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                                id="subject_id" name="subject_id">
-                            <option value="">Choose a subject</option>
-                            {% for subject in subjects %}
-                            <option value="{{ subject.id }}">{{ subject.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <!-- Difficulty Selection -->
-                    <div class="form-group">
-                        <label for="difficulty" class="block text-sm font-medium text-gray-700 mb-2">Difficulty Level</label>
-                        <select class="form-select w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                                id="difficulty" name="difficulty">
-                            <option value="">Any Difficulty</option>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Difficulty Level</label>
+                        <select name="difficulty" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">All Levels</option>
                             <option value="easy">Easy</option>
                             <option value="medium">Medium</option>
                             <option value="hard">Hard</option>
                         </select>
                     </div>
 
-                    <!-- Number of Questions -->
-                    <div class="form-group">
-                        <label for="num_questions" class="block text-sm font-medium text-gray-700 mb-2">Number of Questions</label>
-                        <input type="number" class="form-input w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
-                               id="num_questions" name="num_questions" min="1" max="50" value="10" required>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Number of Questions</label>
+                        <div class="mt-1 flex items-center space-x-4">
+                            <input type="number" 
+                                   name="num_questions" 
+                                   min="1" 
+                                   max="50" 
+                                   value="10" 
+                                   class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <span class="text-sm text-gray-500">Available: <span id="prev_year_count">0</span></span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex justify-end space-x-4">
-                    <a href="{{ url_for('user.user_dashboard') }}" 
-                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Cancel
-                    </a>
-                    <button type="submit" 
-                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Generate Quiz
-                    </button>
-                </div>
+                <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Start Quiz
+                </button>
             </form>
-            {% else %}
-            <!-- Quiz Taking Interface -->
-            <form method="POST" class="quiz-form space-y-8">
+
+            <!-- Subject-wise Quiz Form -->
+            <form id="subject_wise_form" method="POST" class="space-y-6 {% if quiz_type != 'subject_wise' %}hidden{% endif %}">
+                <input type="hidden" name="quiz_type" value="subject_wise">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="time_taken" id="time_taken" value="0">
                 
-                {% for q in questions %}
-                <div class="question bg-gray-50 p-6 rounded-lg shadow-sm">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">
-                        Question {{ loop.index }} of {{ questions|length }}
-                    </h3>
-                    <p class="text-gray-700 mb-4">{{ q.question }}</p>
-                    <div class="space-y-3">
-                        {% for option in ['A', 'B', 'C', 'D'] %}
-                        <div class="flex items-center p-3 rounded-lg hover:bg-gray-100 cursor-pointer">
-                            <input type="radio" 
-                                   name="question_{{ q.id }}" 
-                                   value="{{ option }}" 
-                                   id="q{{ q.id }}_{{ option.lower() }}" 
-                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
-                            <label for="q{{ q.id }}_{{ option.lower() }}" 
-                                   class="ml-3 block text-sm font-medium text-gray-700">
-                                {{ option }}. {{ q['option_' + option.lower()] }}
-                            </label>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Select Subject</label>
+                        <select name="subject_id" id="subject_select" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">Select a subject</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.id }}" {% if selected_subject_id == subject.id %}selected{% endif %}>
+                                    {{ subject.name }} ({{ subject.exam_name }})
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        {% endfor %}
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Chapter</label>
+                        <select name="chapter" id="chapter_select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">All Chapters</option>
+                                {% for chapter in chapters %}
+                                <option value="{{ chapter }}">{{ chapter }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Topics</label>
+                        <div id="topics_container" class="mt-2 space-y-2">
+                                {% for topic in topics %}
+                            <div class="flex items-center">
+                                <input type="checkbox" 
+                                       name="topics" 
+                                       value="{{ topic }}" 
+                                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label class="ml-2 block text-sm text-gray-700">{{ topic }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Difficulty Level</label>
+                        <select name="difficulty" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <option value="">All Levels</option>
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Number of Questions</label>
+                        <div class="mt-1 flex items-center space-x-4">
+                            <input type="number" 
+                                   name="num_questions" 
+                                   id="num_questions"
+                                   min="1" 
+                                   max="50" 
+                                   value="10" 
+                                   class="block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            <span class="text-sm text-gray-500">Available: <span id="subject_count">0</span></span>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
-                
-                <div class="flex justify-end space-x-4">
-                    <button type="submit" 
-                            class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Submit Quiz
+
+                <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Start Quiz
                     </button>
-                </div>
             </form>
-            {% endif %}
         </div>
     </div>
 </div>
 
 <script>
+function showQuizForm(type) {
+    document.getElementById('previous_year_form').classList.toggle('hidden', type !== 'previous_year');
+    document.getElementById('subject_wise_form').classList.toggle('hidden', type !== 'subject_wise');
+    
+    // Update button styles
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.textContent.includes(type === 'previous_year' ? 'Previous Year' : 'Subject-wise')) {
+            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+        }
+    });
+}
+
+// Debounce function to limit API calls
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+// Update question count for previous year quiz
+function updatePrevYearCount() {
+    const examId = document.querySelector('select[name="exam_id"]').value;
+    const difficulty = document.querySelector('select[name="difficulty"]').value;
+    
+    if (!examId) {
+        document.getElementById('prev_year_count').textContent = '0';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('quiz_type', 'previous_year');
+    formData.append('exam_id', examId);
+    if (difficulty) formData.append('difficulty', difficulty);
+
+    fetch('/quiz/get-question-count', {
+                method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('prev_year_count').textContent = data.count;
+        updateMaxQuestions('prev_year_count');
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Update question count for subject-wise quiz
+function updateSubjectCount() {
+    const subjectId = document.getElementById('subject_select').value;
+    const chapter = document.getElementById('chapter_select').value;
+    const topics = Array.from(document.querySelectorAll('input[name="topics"]:checked')).map(cb => cb.value);
+    const difficulty = document.querySelector('select[name="difficulty"]').value;
+    
+    if (!subjectId) {
+        document.getElementById('subject_count').textContent = '0';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('quiz_type', 'subject_wise');
+    formData.append('subject_id', subjectId);
+    if (chapter) formData.append('chapter', chapter);
+    topics.forEach(topic => formData.append('topics', topic));
+    if (difficulty) formData.append('difficulty', difficulty);
+
+    fetch('/quiz/get-question-count', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('subject_count').textContent = data.count;
+        updateMaxQuestions('subject_count');
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Update max questions based on available count
+function updateMaxQuestions(countElementId) {
+    const countElement = document.getElementById(countElementId);
+    const numQuestionsInput = countElementId === 'prev_year_count' 
+        ? document.querySelector('#previous_year_form input[name="num_questions"]')
+        : document.getElementById('num_questions');
+    
+    const availableCount = parseInt(countElement.textContent);
+    numQuestionsInput.max = availableCount;
+    
+    if (parseInt(numQuestionsInput.value) > availableCount) {
+        numQuestionsInput.value = availableCount;
+    }
+}
+
+// Load chapters and topics when subject is selected
+function loadSubjectFilters(subjectId) {
+    if (!subjectId) {
+        document.getElementById('chapter_select').innerHTML = '<option value="">All Chapters</option>';
+        document.getElementById('topics_container').innerHTML = '';
+        document.getElementById('subject_count').textContent = '0';
+        return;
+    }
+
+    fetch(`/quiz/get-subject-filters?subject_id=${subjectId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Update chapters
+            const chapterSelect = document.getElementById('chapter_select');
+            chapterSelect.innerHTML = '<option value="">All Chapters</option>';
+            data.chapters.forEach(chapter => {
+                chapterSelect.innerHTML += `<option value="${chapter}">${chapter}</option>`;
+            });
+
+            // Update topics
+            const topicsContainer = document.getElementById('topics_container');
+            topicsContainer.innerHTML = '';
+            data.topics.forEach(topic => {
+                topicsContainer.innerHTML += `
+                    <div class="flex items-center">
+                        <input type="checkbox" name="topics" value="${topic}" 
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label class="ml-2 block text-sm text-gray-700">${topic}</label>
+                    </div>
+                `;
+            });
+
+            // Update question count
+            document.getElementById('subject_count').textContent = data.question_count;
+            updateMaxQuestions('subject_count');
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Function to update question count
+function updateQuestionCount() {
+    const formData = new FormData(document.getElementById('quizForm'));
+    
+    // Add CSRF token to headers
+    const headers = new Headers();
+    headers.append('X-CSRFToken', '{{ csrf_token() }}');
+    
+    fetch('/quiz/get-question-count', {
+        method: 'POST',
+        body: formData,
+        headers: headers
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error:', data.error);
+            return;
+        }
+        const countInput = document.getElementById('num_questions');
+        const maxQuestions = data.count;
+        countInput.max = maxQuestions;
+        countInput.value = Math.min(countInput.value, maxQuestions);
+        
+        // Update available questions count
+        const availableCount = document.getElementById('availableQuestions');
+        if (availableCount) {
+            availableCount.textContent = maxQuestions;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+// Add event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Timer functionality
-    const timerElement = document.getElementById('timer');
-    const timerDisplay = document.getElementById('timer-display');
-    const timeInput = document.getElementById('time_taken');
-    let startTime = Date.now();
+    // Previous year quiz listeners
+    document.querySelector('select[name="exam_id"]').addEventListener('change', updatePrevYearCount);
+    document.querySelector('select[name="difficulty"]').addEventListener('change', updatePrevYearCount);
 
-    if (timerElement && timeInput && {{ 'true' if questions else 'false' }}) {
-        timerElement.classList.remove('hidden');
+    // Subject-wise quiz listeners
+    document.getElementById('subject_select').addEventListener('change', function() {
+        loadSubjectFilters(this.value);
+    });
+
+    document.getElementById('chapter_select').addEventListener('change', debounce(updateSubjectCount, 300));
+    document.getElementById('topics_container').addEventListener('change', debounce(updateSubjectCount, 300));
+    document.querySelector('select[name="difficulty"]').addEventListener('change', debounce(updateSubjectCount, 300));
+
+    // Form validation
+    document.getElementById('previous_year_form').addEventListener('submit', function(e) {
+        const availableCount = parseInt(document.getElementById('prev_year_count').textContent);
+        const requestedCount = parseInt(this.querySelector('input[name="num_questions"]').value);
         
-        function updateTimer() {
-            const seconds = Math.floor((Date.now() - startTime) / 1000);
-            timeInput.value = seconds;
-            
-            const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const remainingSeconds = (seconds % 60).toString().padStart(2, '0');
-            timerDisplay.textContent = `${minutes}:${remainingSeconds}`;
-        }
-        
-        updateTimer();
-        setInterval(updateTimer, 1000);
-    }
-
-    // Quiz form functionality
-    const quizType = document.getElementById('quiz_type');
-    const examSelect = document.getElementById('exam_id');
-    const subjectGroup = document.getElementById('subject_group');
-    const subjectSelect = document.getElementById('subject_id');
-
-    // Function to update subjects based on selected exam
-    function updateSubjects(examId) {
-        if (examId) {
-            window.location.href = `/quiz?exam_id=${examId}`;
-        } else {
-            subjectGroup.style.display = 'none';
-            subjectSelect.value = '';
-        }
-    }
-
-    // Show/hide subject selection based on quiz type
-    quizType.addEventListener('change', function() {
-        if (this.value === 'subject_wise') {
-            subjectGroup.style.display = 'block';
-            if (examSelect.value) {
-                updateSubjects(examSelect.value);
-            }
-        } else {
-            subjectGroup.style.display = 'none';
-            subjectSelect.value = '';
+        if (requestedCount > availableCount) {
+            e.preventDefault();
+            alert(`Only ${availableCount} questions are available. Please reduce the number of questions.`);
         }
     });
 
-    // Update subjects when exam is selected
-    examSelect.addEventListener('change', function() {
-        if (quizType.value === 'subject_wise') {
-            updateSubjects(this.value);
+    document.getElementById('subject_wise_form').addEventListener('submit', function(e) {
+        const availableCount = parseInt(document.getElementById('subject_count').textContent);
+        const requestedCount = parseInt(document.getElementById('num_questions').value);
+        
+        if (requestedCount > availableCount) {
+            e.preventDefault();
+            alert(`Only ${availableCount} questions are available. Please reduce the number of questions.`);
         }
     });
 
-    // Initialize subject group visibility based on quiz type
-    if (quizType.value === 'subject_wise') {
-        subjectGroup.style.display = 'block';
-    }
+    // Add event listeners for filter changes
+    document.getElementById('subject_id').addEventListener('change', updateQuestionCount);
+    document.getElementById('chapter').addEventListener('change', updateQuestionCount);
+    document.getElementById('topics').addEventListener('change', updateQuestionCount);
+    document.getElementById('difficulty').addEventListener('change', updateQuestionCount);
+    document.getElementById('num_questions').addEventListener('input', function() {
+        const maxQuestions = parseInt(this.max);
+        if (this.value > maxQuestions) {
+            this.value = maxQuestions;
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -8,8 +8,8 @@
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            {% for category, message in messages %}
-                <div class="mb-4 p-4 rounded-lg {% if category == 'danger' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+            {% for chapter, message in messages %}
+                <div class="mb-4 p-4 rounded-lg {% if chapter == 'danger' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
                     {{ message }}
                 </div>
             {% endfor %}

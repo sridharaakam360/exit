@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <!-- Results Header -->
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Quiz Results</h2>
+                <p class="text-lg text-gray-600">
+                    {% if quiz_type == 'previous_year' %}
+                        {{ exam_name }}
+                    {% else %}
+                        {{ subject_name }}
+                        {% if chapter %}
+                        - {{ chapter }}
+                        {% endif %}
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Score Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                    <h3 class="text-lg font-semibold text-blue-800">Score</h3>
+                    <p class="text-3xl font-bold text-blue-600">{{ statistics.score }}%</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <h3 class="text-lg font-semibold text-green-800">Correct Answers</h3>
+                    <p class="text-3xl font-bold text-green-600">{{ statistics.correct_answers }}/{{ statistics.total_questions }}</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg text-center">
+                    <h3 class="text-lg font-semibold text-purple-800">Time Taken</h3>
+                    <p class="text-3xl font-bold text-purple-600">{{ statistics.time_taken }}</p>
+                </div>
+            </div>
+
+            <!-- Difficulty Distribution -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Difficulty Distribution</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-lg text-center">
+                        <p class="text-sm text-gray-600">Easy</p>
+                        <p class="text-xl font-semibold text-gray-800">{{ statistics.difficulty_distribution.easy }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg text-center">
+                        <p class="text-sm text-gray-600">Medium</p>
+                        <p class="text-xl font-semibold text-gray-800">{{ statistics.difficulty_distribution.medium }}</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg text-center">
+                        <p class="text-sm text-gray-600">Hard</p>
+                        <p class="text-xl font-semibold text-gray-800">{{ statistics.difficulty_distribution.hard }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if quiz_type == 'subject_wise' and statistics.chapter_stats %}
+            <!-- Chapter-wise Performance -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Chapter-wise Performance</h3>
+                <div class="space-y-4">
+                    {% for chapter, stats in statistics.chapter_stats.items() %}
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-medium text-gray-800">{{ chapter }}</span>
+                            <span class="text-sm text-gray-600">{{ stats.correct }}/{{ stats.total }} correct</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ (stats.correct / stats.total * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Topic-wise Performance -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Topic-wise Performance</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {% for topic, stats in statistics.topic_stats.items() %}
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-medium text-gray-800">{{ topic }}</span>
+                            <span class="text-sm text-gray-600">{{ stats.correct }}/{{ stats.total }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ (stats.correct / stats.total * 100)|round }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Question Review Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Question Review</h5>
+                </div>
+                <div class="card-body">
+                    {% for question in questions %}
+                    <div class="question-review mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Question {{ loop.index }}</h6>
+                            <span class="badge {% if question.is_correct %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ 'Correct' if question.is_correct else 'Incorrect' }}
+                            </span>
+                        </div>
+                        <p class="mb-3">{{ question.question }}</p>
+                        
+                        <div class="options">
+                            {% for option_key, option_text in question.options.items() %}
+                            <div class="option mb-2 {% if option_key == question.correct_answer %}text-success fw-bold{% elif option_key == question.user_answer and not question.is_correct %}text-danger fw-bold{% endif %}">
+                                <span class="option-key">{{ option_key }}.</span>
+                                {{ option_text }}
+                                {% if option_key == question.correct_answer %}
+                                    <i class="fas fa-check-circle text-success ms-2"></i>
+                                {% elif option_key == question.user_answer and not question.is_correct %}
+                                    <i class="fas fa-times-circle text-danger ms-2"></i>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if question.explanation %}
+                        <div class="explanation mt-3">
+                            <strong>Explanation:</strong>
+                            <p class="mb-0">{{ question.explanation }}</p>
+                        </div>
+                        {% endif %}
+
+                        {% if question.chapter or question.topics %}
+                        <div class="tags mt-3">
+                            {% if question.chapter %}
+                            <span class="badge bg-info me-2">{{ question.chapter }}</span>
+                            {% endif %}
+                            {% for topic in question.topics %}
+                            <span class="badge bg-secondary me-2">{{ topic }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('quiz.quiz') }}" class="btn btn-primary">
+                    <i class="fas fa-redo me-2"></i>Take Another Quiz
+                </a>
+                <a href="{{ url_for('user.user_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-home me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

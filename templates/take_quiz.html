@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <!-- Quiz Header -->
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">{{ quiz_type|title }} Quiz</h1>
+                    <p class="text-gray-600">Question {{ current_question }} of {{ total_questions }}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-lg font-semibold text-gray-700">
+                        Time: <span id="quiz-timer">00:00</span>
+                    </div>
+                    <form method="POST" class="inline" id="cancel-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="cancel_quiz" value="true">
+                        <button type="submit" 
+                                class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                onclick="return confirm('Are you sure you want to cancel this quiz?')">
+                            Cancel Quiz
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Question Details -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        Difficulty: {{ question.difficulty|title }}
+                    </span>
+                    {% if question.chapter %}
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                        Chapter: {{ question.chapter }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if question.topics %}
+                <div class="flex flex-wrap gap-2 mb-4">
+                    {% for topic in question.topics %}
+                    <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                        {{ topic }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Question -->
+            <div class="mb-8">
+                <p class="text-lg text-gray-800 mb-4">{{ question.question }}</p>
+                <form method="POST" action="{{ url_for('quiz.take_quiz') }}" id="quiz-form" class="space-y-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="question_id" value="{{ question.id }}">
+                    <input type="hidden" name="time_taken" id="quiz-time-taken" value="0">
+                    {% for option in ['A', 'B', 'C', 'D'] %}
+                    <div class="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                        <input type="radio" 
+                               name="answer" 
+                               value="{{ option }}" 
+                               id="option_{{ option }}"
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                               {% if answer == option %}checked{% endif %}
+                               required>
+                        <label for="option_{{ option }}" class="text-gray-700">
+                            {{ question['option_' + option.lower()] }}
+                        </label>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Navigation Buttons -->
+                    <div class="flex justify-between mt-6">
+                        {% if current_question > 1 %}
+                        <a href="{{ url_for('quiz.take_quiz', question_number=current_question-1) }}" 
+                           class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                            Previous
+                        </a>
+                        {% else %}
+                        <div></div>
+                        {% endif %}
+
+                        {% if current_question < total_questions %}
+                        <button type="submit" 
+                                name="next_question"
+                                value="true"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Next
+                        </button>
+                        {% else %}
+                        <button type="submit" 
+                                name="submit_quiz" 
+                                value="true"
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                onclick="return confirm('Are you sure you want to submit this quiz?')">
+                            Submit Quiz
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Get form elements with unique IDs to avoid conflicts
+    const quizForm = document.getElementById('quiz-form');
+    const timeTakenInput = document.getElementById('quiz-time-taken');
+    const timerDisplay = document.getElementById('quiz-timer');
+    const cancelForm = document.getElementById('cancel-form');
+
+    // Initialize timer
+    let startTime = new Date().getTime();
+    let timerInterval;
+
+    function updateTimer() {
+        try {
+            const currentTime = new Date().getTime();
+            const elapsedTime = Math.floor((currentTime - startTime) / 1000);
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            
+            if (timerDisplay) {
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            if (timeTakenInput) {
+                timeTakenInput.value = elapsedTime.toString();
+            }
+        } catch (error) {
+            console.error('Error updating timer:', error);
+        }
+    }
+
+    // Start the timer
+    if (timerDisplay && timeTakenInput) {
+        timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    // Handle quiz form submission
+    if (quizForm) {
+        quizForm.addEventListener('submit', function(e) {
+            try {
+                // Stop the timer
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+                
+                // Update final time
+                updateTimer();
+                
+                // Validate answer selection
+                const selectedAnswer = document.querySelector('input[name="answer"]:checked');
+                if (!selectedAnswer) {
+                    e.preventDefault();
+                    alert('Please select an answer before proceeding.');
+                }
+            } catch (error) {
+                console.error('Error handling form submission:', error);
+                e.preventDefault();
+            }
+        });
+    }
+
+    // Handle cancel form submission
+    if (cancelForm) {
+        cancelForm.addEventListener('submit', function(e) {
+            try {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+            } catch (error) {
+                console.error('Error handling cancel submission:', error);
+            }
+        });
+    }
+})();
+</script>
+{% endblock %} 

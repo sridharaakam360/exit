@@ -152,8 +152,8 @@
     <div class="flash-messages">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash {{ category if category else 'info' }} animate-slide-down" role="alert">
+                {% for chapter, message in messages %}
+                    <div class="flash {{ chapter if chapter else 'info' }} animate-slide-down" role="alert">
                         {{ message }}
                         <button class="close-flash" onclick="this.parentElement.style.display='none';">×</button>
                     </div>

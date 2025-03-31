@@ -98,7 +98,7 @@ def init_db():
             option_c VARCHAR(255) NOT NULL,
             option_d VARCHAR(255) NOT NULL,
             correct_answer CHAR(1) NOT NULL,
-            category VARCHAR(50) NOT NULL,
+            chapter VARCHAR(50) NOT NULL,
             difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
             subject_id INT,
             is_previous_year BOOLEAN DEFAULT FALSE,
@@ -116,7 +116,7 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             name ENUM('Dpharm Package', 'Bpharm Package', 'Combo Package') NOT NULL,
             price DECIMAL(10,2) NOT NULL,
-            duration_days INT NOT NULL,
+            duration_months INT NOT NULL,
             description TEXT,
             degree_access ENUM('Dpharm', 'Bpharm', 'both') NOT NULL,
             includes_previous_years BOOLEAN DEFAULT TRUE,
@@ -141,13 +141,16 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
             exam_id INT,
+            subject_id INT,
             score INT NOT NULL,
             total_questions INT NOT NULL,
             time_taken INT NOT NULL,
             answers JSON,
+            question_details JSON,
             date_taken DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL
+            FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL,
+            FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
         )''')
 
         # Question_reviews table

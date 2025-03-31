@@ -18,6 +18,23 @@ document.addEventListener('DOMContentLoaded', function() {
     setupExportButtons();
     addTableExport();
     makeTablesResponsive();
+
+    const quizForm = document.getElementById('quizForm');
+    if (quizForm) {
+        quizForm.addEventListener('submit', function(e) {
+            // Don't prevent default - let the form submit naturally
+            // Remove any redirects or window.location changes
+        });
+    }
+
+    // Add this to prevent unwanted navigation when on the take-test page
+    if (window.location.pathname.includes('/take-test')) {
+        // Prevent navigation away from test page
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', function(event) {
+            window.history.pushState(null, '', window.location.href);
+        });
+    }
 });
 
 /**
@@ -246,12 +263,12 @@ function setupFormAnimations() {
 /**
  * Show a flash message programmatically
  */
-function showFlashMessage(message, category = 'info') {
+function showFlashMessage(message, chapter = 'info') {
     const flashContainer = document.querySelector('.flash-messages');
     if (!flashContainer) return;
     
     const flash = document.createElement('div');
-    flash.classList.add('flash', category, 'animate-slide-down');
+    flash.classList.add('flash', chapter, 'animate-slide-down');
     flash.innerHTML = `
         ${message}
         <button class="close-flash" onclick="this.parentElement.style.display='none';">&times;</button>

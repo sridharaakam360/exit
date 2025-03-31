@@ -156,52 +156,40 @@ def export_user_dashboard(format):
 @user_bp.route('/subscriptions')
 @login_required
 def subscriptions():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
     try:
-        cursor.execute('''SELECT u.subscription_plan_id, u.subscription_start, u.subscription_end, 
-            u.subscription_status, p.name as plan_name, p.price
-            FROM users u
-            LEFT JOIN subscription_plans p ON u.subscription_plan_id = p.id
-            WHERE u.id = %s''', (session['user_id'],))
-        user_subscription = cursor.fetchone()
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
         
-        # Get all individual subscription plans
-        cursor.execute('''SELECT * FROM subscription_plans 
-            WHERE is_institution = FALSE 
-            ORDER BY price''')
+        # Get all subscription plans with complete details
+        cursor.execute('''
+            SELECT id, name, price, duration_months, description, 
+                   degree_access, includes_previous_years, 
+                   is_institution, student_range, custom_student_range
+            FROM subscription_plans
+            WHERE is_institution = FALSE
+            ORDER BY price ASC
+        ''')
         plans = cursor.fetchall()
         
-        for plan in plans:
-            cursor.execute('''SELECT e.id, e.name FROM plan_exam_access pea 
-                            JOIN exams e ON pea.exam_id = e.id 
-                            WHERE pea.plan_id = %s''', (plan['id'],))
-            plan['exams'] = [{'id': row['id'], 'name': row['name']} for row in cursor.fetchall()]
-            
-            if user_subscription and user_subscription['subscription_plan_id'] == plan['id']:
-                plan['is_active'] = True
-                plan['expires_on'] = user_subscription['subscription_end']
-            else:
-                plan['is_active'] = False
-                plan['expires_on'] = None
-        
-        is_subscribed = (user_subscription and 
-                        user_subscription['subscription_end'] and 
-                        user_subscription['subscription_end'] > datetime.now() and
-                        user_subscription['subscription_status'] == 'active')
-        
-        return render_template('subscriptions.html', 
-                              plans=plans, 
-                              user_subscription=user_subscription,
-                              is_subscribed=is_subscribed)
-    except Error as err:
-        logger.error(f"Database error in subscriptions page: {str(err)}")
-        flash('Error loading subscription data.', 'danger')
+        # Get user's current subscription if any
+        cursor.execute('''
+            SELECT sp.*, u.subscription_start, u.subscription_end, u.subscription_status
+            FROM users u
+            LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id
+            WHERE u.id = %s
+        ''', (session['user_id'],))
+        current_subscription = cursor.fetchone()
+
+        return render_template('subscriptions.html',
+                             plans=plans,
+                             current_subscription=current_subscription)
+    except Exception as e:
+        logger.error(f"Error loading subscription plans: {str(e)}")
+        flash('Error loading subscription plans.', 'error')
         return redirect(url_for('user.user_dashboard'))
     finally:
-        cursor.close()
-        conn.close()
+        if 'conn' in locals():
+            conn.close()
 
 @user_bp.route('/subscribe/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
@@ -236,7 +224,7 @@ def subscribe(plan_id):
         
         if form.validate_on_submit():
             start_date = datetime.now().date()
-            end_date = start_date + timedelta(days=plan['duration_days'])
+            end_date = start_date + timedelta(days=plan['duration_months'])
                         
             cursor.execute('''UPDATE users 
                 SET subscription_plan_id = %s,

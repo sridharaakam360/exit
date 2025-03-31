@@ -50,7 +50,7 @@ class QuestionForm(FlaskForm):
     option_c = StringField('Option C', validators=[DataRequired(), Length(min=1, max=200)])
     option_d = StringField('Option D', validators=[DataRequired(), Length(min=1, max=200)])
     correct_answer = SelectField('Correct Answer', choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], validators=[DataRequired()])
-    category = StringField('Category', validators=[DataRequired(), Length(min=1, max=100)])
+    chapter = StringField('chapter', validators=[DataRequired(), Length(min=1, max=100)])
     difficulty = SelectField('Difficulty', choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], validators=[DataRequired()])
     subject_id = SelectField('Subject', coerce=int, validators=[DataRequired()])
     previous_year = IntegerField('Previous Year', validators=[])

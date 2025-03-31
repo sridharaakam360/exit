@@ -131,12 +131,12 @@ def manage_questions():
         if request.method == 'POST' and 'question' in request.form and form.validate_on_submit():
             topics_json = json.dumps([t.strip() for t in form.topics.data.split(',')]) if form.topics.data else '[]'
             cursor.execute('''INSERT INTO questions 
-                            (question, option_a, option_b, option_c, option_d, correct_answer, category, difficulty, subject_id, 
+                            (question, option_a, option_b, option_c, option_d, correct_answer, chapter, difficulty, subject_id, 
                             is_previous_year, previous_year, topics, explanation, created_by) 
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                             (form.question.data, form.option_a.data, form.option_b.data,
                              form.option_c.data, form.option_d.data, form.correct_answer.data.upper(),
-                             form.category.data, form.difficulty.data, form.subject_id.data,
+                             form.chapter.data, form.difficulty.data, form.subject_id.data,
                              form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
                              topics_json, form.explanation.data, session['user_id']))
             conn.commit()
@@ -175,7 +175,7 @@ def manage_questions():
             base_query += ' AND q.is_previous_year = FALSE'
         
         if search_query:
-            base_query += ' AND (q.question LIKE %s OR q.category LIKE %s OR q.topics LIKE %s)'
+            base_query += ' AND (q.question LIKE %s OR q.chapter LIKE %s OR q.topics LIKE %s)'
             search_term = f'%{search_query}%'
             query_params.extend([search_term, search_term, search_term])
 
@@ -241,7 +241,7 @@ def edit_question(question_id):
             form.option_c.data = question['option_c']
             form.option_d.data = question['option_d']
             form.correct_answer.data = question['correct_answer']
-            form.category.data = question['category']
+            form.chapter.data = question['chapter']
             form.difficulty.data = question['difficulty']
             form.subject_id.data = question['subject_id']
             form.is_previous_year.data = question['is_previous_year']
@@ -252,12 +252,12 @@ def edit_question(question_id):
             topics_json = json.dumps([t.strip() for t in form.topics.data.split(',')]) if form.topics.data else '[]'
             cursor.execute('''UPDATE questions 
                             SET question = %s, option_a = %s, option_b = %s, option_c = %s, option_d = %s, 
-                            correct_answer = %s, category = %s, difficulty = %s, subject_id = %s, 
+                            correct_answer = %s, chapter = %s, difficulty = %s, subject_id = %s, 
                             is_previous_year = %s, previous_year = %s, topics = %s, explanation = %s 
                             WHERE id = %s''',
                             (form.question.data, form.option_a.data, form.option_b.data,
                              form.option_c.data, form.option_d.data, form.correct_answer.data.upper(),
-                             form.category.data, form.difficulty.data, form.subject_id.data,
+                             form.chapter.data, form.difficulty.data, form.subject_id.data,
                              form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
                              topics_json, form.explanation.data, question_id))
             conn.commit()
@@ -577,7 +577,7 @@ def download_template(format):
             'Option C': ['Option C1', 'Option C2'],
             'Option D': ['Option D1', 'Option D2'],
             'Correct Answer': ['A', 'B'],
-            'Category': ['Category1', 'Category2'],
+            'chapter': ['chapter1', 'chapter2'],
             'Difficulty': ['easy', 'medium'],
             'Subject ID': ['1', '2'],
             'Is Previous Year': ['FALSE', 'TRUE'],
@@ -699,12 +699,12 @@ def upload_questions():
                     # Insert question
                     cursor.execute('''INSERT INTO questions 
                         (question, option_a, option_b, option_c, option_d, correct_answer, 
-                         category, difficulty, subject_id, is_previous_year, previous_year, 
+                         chapter, difficulty, subject_id, is_previous_year, previous_year, 
                          topics, explanation, created_by) 
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                         (str(row['Question']), str(row['Option A']), str(row['Option B']),
                          str(row['Option C']), str(row['Option D']), correct_answer,
-                         row.get('Category', ''), row.get('Difficulty', 'medium'),
+                         row.get('chapter', ''), row.get('Difficulty', 'medium'),
                          subject_id, is_previous_year, previous_year,
                          topics_json, str(row['Explanation']), session['user_id']))
                     success_count += 1

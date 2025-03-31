@@ -8,7 +8,8 @@ CREATE TABLE subscription_plans (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    duration_days INT NOT NULL,
+    --duration_months INT NOT NULL,
+    duration_months INT NOT NULL,
     description TEXT,
     degree_access ENUM('Dpharm', 'Bpharm', 'both') NOT NULL,
     includes_previous_years BOOLEAN DEFAULT TRUE,
@@ -102,7 +103,7 @@ CREATE TABLE questions (
     correct_answer CHAR(1) NOT NULL,
     explanation TEXT,
     difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
-    category VARCHAR(100),
+    chapter VARCHAR(100),
     subject_id INT NOT NULL,
     is_previous_year BOOLEAN DEFAULT FALSE,
     previous_year INT,
@@ -139,4 +140,20 @@ CREATE TABLE question_reviews (
     FOREIGN KEY (question_id) REFERENCES questions(id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     UNIQUE KEY unique_user_question_review (user_id, question_id)
-); 
+);
+
+-- Update questions table
+ALTER TABLE questions 
+CHANGE COLUMN chapter chapter VARCHAR(100); 
+
+-- New query
+SELECT DISTINCT q.*, s.name AS subject_name, e.name as exam_name, s.exam_id
+FROM questions q
+JOIN subjects s ON q.subject_id = s.id
+JOIN exams e ON s.exam_id = e.id
+JOIN plan_exam_access pea ON e.id = pea.exam_id
+WHERE pea.plan_id = %s
+AND (e.degree_type = %s OR %s = 'both')
+AND q.subject_id = %s
+AND q.chapter = %s
+AND JSON_CONTAINS(q.topics, %s) 
