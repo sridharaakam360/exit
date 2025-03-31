@@ -36,6 +36,7 @@
                         <a href="{{ url_for('admin.admin_dashboard') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.admin_dashboard') %}bg-blue-500{% endif %}">Admin Dashboard</a>
                         <a href="{{ url_for('admin.manage_questions') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.manage_questions') %}bg-blue-500{% endif %}">Manage Questions</a>
                         <a href="{{ url_for('admin.manage_users') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.manage_users') %}bg-blue-500{% endif %}">Manage Users</a>
+                        <a href="{{ url_for('admin.manage_content') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.manage_content') %}bg-blue-500{% endif %}">Manage Content</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.quiz') %}bg-blue-500{% endif %}">Take Quiz</a>
                     {% elif session.role == 'instituteadmin' %}
                         <a href="{{ url_for('institution.institution_dashboard') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('institution.institution_dashboard') %}bg-blue-500{% endif %}">Institute Dashboard</a>
@@ -105,6 +106,7 @@
                         <a href="{{ url_for('admin.admin_dashboard') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Admin</a>
                         <a href="{{ url_for('admin.manage_questions') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Questions</a>
                         <a href="{{ url_for('admin.manage_users') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Users</a>
+                        <a href="{{ url_for('admin.manage_content') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Content</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Quiz</a>
                     {% elif session.role == 'instituteadmin' %}
                         <a href="{{ url_for('institution.institution_dashboard') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Dashboard</a>

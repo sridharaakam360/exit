@@ -75,13 +75,13 @@
                         <label class="block text-sm font-medium text-gray-700">Select Subject</label>
                         <select name="subject_id" id="subject_select" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             <option value="">Select a subject</option>
-                                {% for subject in subjects %}
-                                <option value="{{ subject.id }}" {% if selected_subject_id == subject.id %}selected{% endif %}>
-                                    {{ subject.name }} ({{ subject.exam_name }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if selected_subject_id == subject.id %}selected{% endif %}>
+                                {{ subject.name }} ({{ subject.exam_name }} - {{ subject.degree_type }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Chapter</label>

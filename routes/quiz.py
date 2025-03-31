@@ -153,7 +153,7 @@ def quiz():
         if quiz_type == 'subject_wise':
             # Get subjects
             cursor.execute('''
-                SELECT DISTINCT s.id, s.name, s.exam_id, e.name as exam_name
+                SELECT DISTINCT s.id, s.name, s.exam_id, e.name as exam_name, e.degree_type
                 FROM subjects s
                 JOIN exams e ON s.exam_id = e.id
                 JOIN questions q ON s.id = q.subject_id
@@ -168,25 +168,39 @@ def quiz():
             if subject_id:
                 cursor.execute('''
                     SELECT DISTINCT chapter
-                    FROM questions
-                    WHERE subject_id = %s
-                    AND chapter IS NOT NULL
-                    ORDER BY chapter
-                ''', (subject_id,))
+                    FROM questions q
+                    JOIN subjects s ON q.subject_id = s.id
+                    JOIN exams e ON s.exam_id = e.id
+                    JOIN plan_exam_access pea ON e.id = pea.exam_id
+                    WHERE q.subject_id = %s
+                    AND pea.plan_id = %s
+                    AND (e.degree_type = %s OR %s = 'both')
+                    AND q.chapter IS NOT NULL
+                    AND q.chapter != ''
+                    ORDER BY q.chapter
+                ''', (subject_id, user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
                 chapters = [row['chapter'] for row in cursor.fetchall() if row['chapter']]
 
                 # Get topics using JSON_TABLE for better performance
                 cursor.execute('''
                     SELECT DISTINCT topic
-                    FROM questions,
+                    FROM questions q
+                    JOIN subjects s ON q.subject_id = s.id
+                    JOIN exams e ON s.exam_id = e.id
+                    JOIN plan_exam_access pea ON e.id = pea.exam_id,
                     JSON_TABLE(
-                        topics,
+                        q.topics,
                         '$[*]' COLUMNS (topic VARCHAR(255) PATH '$')
                     ) AS topics_table
-                    WHERE subject_id = %s 
-                    AND topics IS NOT NULL
+                    WHERE q.subject_id = %s 
+                    AND pea.plan_id = %s
+                    AND (e.degree_type = %s OR %s = 'both')
+                    AND q.topics IS NOT NULL
+                    AND JSON_LENGTH(q.topics) > 0
+                    AND topic IS NOT NULL
+                    AND topic != ''
                     ORDER BY topic
-                ''', (subject_id,))
+                ''', (subject_id, user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
                 topics = [row['topic'] for row in cursor.fetchall() if row['topic']]
 
         return render_template('quiz.html',
@@ -708,7 +722,7 @@ def generate_quiz_questions(quiz_type, subject_id=None, exam_id=None, chapter=No
     """Generate quiz questions based on selected criteria"""
     try:
         query = '''
-            SELECT DISTINCT q.*, s.name AS subject_name, e.name as exam_name, s.exam_id
+            SELECT DISTINCT q.*, s.name AS subject_name, e.name as exam_name, s.exam_id, e.degree_type
             FROM questions q
             JOIN subjects s ON q.subject_id = s.id
             JOIN exams e ON s.exam_id = e.id

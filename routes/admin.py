@@ -13,9 +13,19 @@ import io
 import csv
 from werkzeug.utils import secure_filename
 import os
+from functools import wraps
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
+
+def superadmin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('role') != 'superadmin':
+            flash('Access denied. Superadmin privileges required.', 'error')
+            return redirect(url_for('user.user_dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @admin_bp.route('/dashboard')
 @super_admin_required
@@ -732,3 +742,235 @@ def upload_questions():
         flash('Error processing file.', 'danger')
         
     return redirect(url_for('admin.manage_questions'))
+
+@admin_bp.route('/manage_content')
+@superadmin_required
+def manage_content():
+    """Display the content management page"""
+    logger.info(f"Session data: {session}")
+    logger.info(f"User role: {session.get('role')}")
+    logger.info(f"User ID: {session.get('user_id')}")
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get all plans
+        cursor.execute('SELECT * FROM subscription_plans ORDER BY name')
+        plans = cursor.fetchall()
+        
+        # Get all exams
+        cursor.execute('SELECT * FROM exams ORDER BY name')
+        exams = cursor.fetchall()
+        
+        # Get all subjects
+        cursor.execute('SELECT * FROM subjects ORDER BY name')
+        subjects = cursor.fetchall()
+        
+        return render_template('admin/manage_content.html',
+                             plans=plans,
+                             exams=exams,
+                             subjects=subjects)
+                             
+    except Exception as e:
+        logger.error(f"Error in manage_content: {str(e)}")
+        flash('Error loading content management page.', 'error')
+        return redirect(url_for('user.user_dashboard'))
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@admin_bp.route('/add-plan', methods=['POST'])
+@superadmin_required
+def add_plan():
+    """Add a new plan"""
+    try:
+        name = request.form.get('name')
+        price = request.form.get('price')
+        duration_months = request.form.get('duration')
+        degree_access = request.form.get('degree_access', 'both')
+        includes_previous_years = request.form.get('includes_previous_years') == 'on'
+        is_institution = request.form.get('is_institution') == 'on'
+        student_range = request.form.get('student_range', 50)
+        custom_student_range = request.form.get('custom_student_range') == 'on'
+        description = request.form.get('description')
+        
+        if not all([name, price, duration_months]):
+            flash('Name, price, and duration are required.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO subscription_plans 
+            (name, price, duration_months, degree_access, includes_previous_years, 
+             is_institution, student_range, custom_student_range, description)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (name, price, duration_months, degree_access, includes_previous_years, 
+              is_institution, student_range, custom_student_range, description))
+        
+        conn.commit()
+        flash('Plan added successfully.', 'success')
+        
+    except Exception as e:
+        logger.error(f"Error adding plan: {str(e)}")
+        flash('Error adding plan.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/delete-plan/<int:plan_id>', methods=['POST'])
+@superadmin_required
+def delete_plan(plan_id):
+    """Delete a plan"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if plan is in use by users or institutions
+        cursor.execute('''
+            SELECT COUNT(*) FROM users 
+            WHERE subscription_plan_id = %s 
+            OR EXISTS (
+                SELECT 1 FROM institutions 
+                WHERE subscription_plan_id = %s
+            )
+        ''', (plan_id, plan_id))
+        
+        if cursor.fetchone()[0] > 0:
+            flash('Cannot delete plan that is in use by users or institutions.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        cursor.execute('DELETE FROM subscription_plans WHERE id = %s', (plan_id,))
+        conn.commit()
+        flash('Plan deleted successfully.', 'success')
+        
+    except Exception as e:
+        logger.error(f"Error deleting plan: {str(e)}")
+        flash('Error deleting plan.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/add-exam', methods=['POST'])
+@superadmin_required
+def add_exam():
+    """Add a new exam"""
+    try:
+        name = request.form.get('name')
+        degree_type = request.form.get('degree_type')
+        description = request.form.get('description')
+        
+        if not all([name, degree_type]):
+            flash('Exam name and degree type are required.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO exams (name, degree_type, description)
+            VALUES (%s, %s, %s)
+        ''', (name, degree_type, description))
+        
+        conn.commit()
+        flash('Exam added successfully.', 'success')
+        
+    except Exception as e:
+        logger.error(f"Error adding exam: {str(e)}")
+        flash('Error adding exam.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/delete-exam/<int:exam_id>', methods=['POST'])
+@superadmin_required
+def delete_exam(exam_id):
+    """Delete an exam"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if exam is in use
+        cursor.execute('SELECT COUNT(*) FROM subjects WHERE exam_id = %s', (exam_id,))
+        if cursor.fetchone()[0] > 0:
+            flash('Cannot delete exam that has associated subjects.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        cursor.execute('DELETE FROM exams WHERE id = %s', (exam_id,))
+        conn.commit()
+        flash('Exam deleted successfully.', 'success')
+        
+    except Exception as e:
+        flash('Error deleting exam.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/add-subject', methods=['POST'])
+@superadmin_required
+def add_subject():
+    """Add a new subject"""
+    try:
+        name = request.form.get('name')
+        degree_type = request.form.get('degree_type')
+        description = request.form.get('description')
+        
+        if not all([name, degree_type]):
+            flash('Subject name and degree type are required.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO subjects (name, degree_type, description)
+            VALUES (%s, %s, %s)
+        ''', (name, degree_type, description))
+        
+        conn.commit()
+        flash('Subject added successfully.', 'success')
+        
+    except Exception as e:
+        logger.error(f"Error adding subject: {str(e)}")
+        flash('Error adding subject.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/delete-subject/<int:subject_id>', methods=['POST'])
+@superadmin_required
+def delete_subject(subject_id):
+    """Delete a subject"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if subject is in use
+        cursor.execute('SELECT COUNT(*) FROM questions WHERE subject_id = %s', (subject_id,))
+        if cursor.fetchone()[0] > 0:
+            flash('Cannot delete subject that has associated questions.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        cursor.execute('DELETE FROM subjects WHERE id = %s', (subject_id,))
+        conn.commit()
+        flash('Subject deleted successfully.', 'success')
+        
+    except Exception as e:
+        flash('Error deleting subject.', 'error')
+    finally:
+        if 'conn' in locals():
+            conn.close()
+    
+    return redirect(url_for('admin.manage_content'))
