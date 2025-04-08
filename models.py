@@ -5,8 +5,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from config import Config
 import os
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
 
 logger = logging.getLogger(__name__)
+db = SQLAlchemy()
 
 db_config = {
     'pool_name': 'pharmacy_pool',
@@ -262,3 +265,113 @@ class User(UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
+
+class Result(db.Model):
+    __tablename__ = 'results'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    total_questions = db.Column(db.Integer, nullable=False)
+    time_taken = db.Column(db.Integer, nullable=False)
+    answers = db.Column(db.JSON)
+    date_taken = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('results', lazy=True))
+    subject = db.relationship('Subject', backref=db.backref('results', lazy=True))
+    
+    def __repr__(self):
+        return f'<Result {self.id}: User {self.user_id}, Subject {self.subject_id}, Score {self.score}>'
+
+class Institution(db.Model):
+    __tablename__ = 'institutions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    institution_code = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    subscription_plan_id = db.Column(db.Integer, db.ForeignKey('subscription_plans.id'))
+    subscription_start = db.Column(db.DateTime)
+    subscription_end = db.Column(db.DateTime)
+    student_range = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Institution {self.name}>'
+
+class Subject(db.Model):
+    __tablename__ = 'subjects'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    degree_type = db.Column(db.Enum('Dpharm', 'Bpharm'), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    questions = db.relationship('Question', backref='subject', lazy=True)
+    results = db.relationship('Result', backref='subject', lazy=True)
+    
+    def __repr__(self):
+        return f'<Subject {self.name}>'
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.Text, nullable=False)
+    option_b = db.Column(db.Text, nullable=False)
+    option_c = db.Column(db.Text, nullable=False)
+    option_d = db.Column(db.Text, nullable=False)
+    correct_answer = db.Column(db.String(1), nullable=False)
+    explanation = db.Column(db.Text)
+    difficulty = db.Column(db.Enum('easy', 'medium', 'hard'), default='medium')
+    chapter = db.Column(db.String(100))
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    is_previous_year = db.Column(db.Boolean, default=False)
+    previous_year = db.Column(db.Integer)
+    topics = db.Column(db.JSON)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    creator = db.relationship('User', backref=db.backref('questions', lazy=True))
+    
+    def __repr__(self):
+        return f'<Question {self.id}>'
+
+class QuestionReview(db.Model):
+    __tablename__ = 'question_reviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    question = db.relationship('Question', backref=db.backref('reviews', lazy=True))
+    user = db.relationship('User', backref=db.backref('question_reviews', lazy=True))
+    
+    def __repr__(self):
+        return f'<QuestionReview {self.id}: Question {self.question_id}, Rating {self.rating}>'
+
+class SubscriptionPlan(db.Model):
+    __tablename__ = 'subscription_plans'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    duration_months = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.Text)
+    degree_access = db.Column(db.Enum('Dpharm', 'Bpharm', 'both'), nullable=False)
+    includes_previous_years = db.Column(db.Boolean, default=True)
+    is_institution = db.Column(db.Boolean, default=False)
+    student_range = db.Column(db.Integer, nullable=False, default=50)
+    custom_student_range = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SubscriptionPlan {self.name}>'

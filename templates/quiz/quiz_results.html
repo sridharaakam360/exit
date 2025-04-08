@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Quiz Results</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Quiz Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title">Quiz Summary</h5>
+                                    <p class="mb-1"><strong>Subject:</strong> {{ subject_name }}</p>
+                                    <p class="mb-1"><strong>Score:</strong> {{ result.score }}%</p>
+                                    <p class="mb-1"><strong>Time Taken:</strong> {{ statistics.time_taken }}</p>
+                                    <p class="mb-1"><strong>Total Questions:</strong> {{ statistics.total_questions }}</p>
+                                    <p class="mb-1"><strong>Correct Answers:</strong> {{ statistics.correct_answers }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h5 class="card-title">Difficulty Distribution</h5>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-success" style="width: {{ (statistics.difficulty_distribution.easy / statistics.total_questions * 100) }}%">
+                                            Easy: {{ statistics.difficulty_distribution.easy }}
+                                        </div>
+                                        <div class="progress-bar bg-warning" style="width: {{ (statistics.difficulty_distribution.medium / statistics.total_questions * 100) }}%">
+                                            Medium: {{ statistics.difficulty_distribution.medium }}
+                                        </div>
+                                        <div class="progress-bar bg-danger" style="width: {{ (statistics.difficulty_distribution.hard / statistics.total_questions * 100) }}%">
+                                            Hard: {{ statistics.difficulty_distribution.hard }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Questions Review -->
+                    <div class="questions-review">
+                        <h4 class="mb-3">Questions Review</h4>
+                        {% for question in questions %}
+                        <div class="card mb-3 {% if question.is_correct %}border-success{% else %}border-danger{% endif %}">
+                            <div class="card-header {% if question.is_correct %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                                Question {{ loop.index }}
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ question.question }}</h5>
+                                <div class="options mt-3">
+                                    {% for option, text in question.options.items() %}
+                                    <div class="option-item mb-2 p-2 rounded {% if option == question.correct_answer %}bg-success text-white{% elif option == question.user_answer %}bg-danger text-white{% else %}bg-light{% endif %}">
+                                        <strong>{{ option }}:</strong> {{ text }}
+                                        {% if option == question.correct_answer %}
+                                        <i class="fas fa-check-circle float-end"></i>
+                                        {% elif option == question.user_answer %}
+                                        <i class="fas fa-times-circle float-end"></i>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if not question.user_answer %}
+                                <div class="alert alert-warning mt-2">
+                                    <i class="fas fa-exclamation-circle"></i> This question was not answered
+                                </div>
+                                {% endif %}
+                                {% if question.explanation %}
+                                <div class="explanation mt-3">
+                                    <h6>Explanation:</h6>
+                                    <p class="text-muted">{{ question.explanation }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Chapter and Topic Statistics -->
+                    {% if statistics.chapter_stats or statistics.topic_stats %}
+                    <div class="row mt-4">
+                        {% if statistics.chapter_stats %}
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Chapter-wise Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% for chapter, stats in statistics.chapter_stats.items() %}
+                                    <div class="mb-3">
+                                        <h6>{{ chapter }}</h6>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ (stats.correct / stats.total * 100) }}%">
+                                                {{ stats.correct }}/{{ stats.total }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if statistics.topic_stats %}
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Topic-wise Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% for topic, stats in statistics.topic_stats.items() %}
+                                    <div class="mb-3">
+                                        <h6>{{ topic }}</h6>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ (stats.correct / stats.total * 100) }}%">
+                                                {{ stats.correct }}/{{ stats.total }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.option-item {
+    transition: all 0.3s ease;
+}
+.option-item:hover {
+    transform: translateX(5px);
+}
+.progress {
+    height: 25px;
+}
+.progress-bar {
+    font-size: 14px;
+    line-height: 25px;
+}
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+}
+.card-header {
+    border-radius: 0 !important;
+}
+.questions-review .card {
+    transition: all 0.3s ease;
+}
+.questions-review .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %} 

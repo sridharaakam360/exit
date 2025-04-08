@@ -39,19 +39,23 @@
                         <a href="{{ url_for('admin.manage_users') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.manage_users') %}bg-blue-500{% endif %}">Manage Users</a>
                         <a href="{{ url_for('admin.manage_content') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('admin.manage_content') %}bg-blue-500{% endif %}">Manage Content</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.quiz') %}bg-blue-500{% endif %}">Take Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.test_history') %}bg-blue-500{% endif %}">Test History</a>
                     {% elif current_user.role == 'instituteadmin' %}
                         <a href="{{ url_for('institution.institution_dashboard') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('institution.institution_dashboard') %}bg-blue-500{% endif %}">Institute Dashboard</a>
                         <a href="{{ url_for('institution.manage_students', type='instituteadmin', parent_id=current_user.institution_id) }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors">Manage Students</a>
                         <a href="{{ url_for('institution.institution_subscription') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('institution.institution_subscription') %}bg-blue-500{% endif %}">Subscription</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.quiz') %}bg-blue-500{% endif %}">Take Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.test_history') %}bg-blue-500{% endif %}">Test History</a>
                     {% elif current_user.role == 'individual' %}
                         <a href="{{ url_for('user.user_dashboard') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('user.user_dashboard') %}bg-blue-500{% endif %}">Dashboard</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.quiz') %}bg-blue-500{% endif %}">Take Quiz</a>
                         <a href="{{ url_for('user.subscriptions') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('user.subscriptions') %}bg-blue-500{% endif %}">Subscriptions</a>
                         <a href="{{ url_for('user.subscription_history') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('user.subscription_history') %}bg-blue-500{% endif %}">Subscription History</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.test_history') %}bg-blue-500{% endif %}">Test History</a>
                     {% elif current_user.role == 'student' %}
                         <a href="{{ url_for('user.user_dashboard') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('user.user_dashboard') %}bg-blue-500{% endif %}">Dashboard</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.quiz') %}bg-blue-500{% endif %}">Take Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors {% if request.path == url_for('quiz.test_history') %}bg-blue-500{% endif %}">Test History</a>
                         {% if current_user.institution_id %}
                             <span class="px-3 py-2 text-blue-200">{{ current_user.institution_name or 'Institution' }}</span>
                         {% endif %}
@@ -109,18 +113,22 @@
                         <a href="{{ url_for('admin.manage_users') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Users</a>
                         <a href="{{ url_for('admin.manage_content') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Content</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">History</a>
                     {% elif current_user.role == 'instituteadmin' %}
                         <a href="{{ url_for('institution.institution_dashboard') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Dashboard</a>
                         <a href="{{ url_for('admin.manage_users', type='instituteadmin', parent_id=current_user.institution_id) }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Students</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">History</a>
                     {% elif current_user.role == 'individual' %}
                         <a href="{{ url_for('user.user_dashboard') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Dashboard</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Quiz</a>
                         <a href="{{ url_for('user.subscriptions') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Subscriptions</a>
                         <a href="{{ url_for('user.subscription_history') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Sub History</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">History</a>
                     {% elif current_user.role == 'student' %}
                         <a href="{{ url_for('user.user_dashboard') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Dashboard</a>
                         <a href="{{ url_for('quiz.quiz') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Quiz</a>
+                        <a href="{{ url_for('quiz.test_history') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">History</a>
                     {% endif %}
                 {% else %}
                     <a href="{{ url_for('auth.choose_login') }}" class="px-2 py-1 hover:bg-blue-600 rounded transition-colors whitespace-nowrap">Login</a>

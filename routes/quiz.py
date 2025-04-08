@@ -57,12 +57,10 @@ def quiz():
         cursor.execute('''
             SELECT 
                 u.role,
-                COALESCE(u.subscription_plan_id, i.subscription_plan_id) as plan_id,
-                COALESCE(sp_ind.degree_access, sp_inst.degree_access) as degree_access
+                u.subscription_plan_id as plan_id,
+                sp.degree_access
             FROM users u
-            LEFT JOIN institutions i ON u.institution_id = i.id
-            LEFT JOIN subscription_plans sp_ind ON u.subscription_plan_id = sp_ind.id
-            LEFT JOIN subscription_plans sp_inst ON i.subscription_plan_id = sp_inst.id
+            LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id
             WHERE u.id = %s
         ''', (session['user_id'],))
         user_data = cursor.fetchone()
@@ -71,154 +69,145 @@ def quiz():
             flash('User subscription details not found.', 'error')
             return redirect(url_for('user.user_dashboard'))
 
+        # For superadmin, bypass subscription checks
+        if user_data['role'] == 'superadmin':
+            user_data['plan_id'] = 1  # Default to first plan
+            user_data['degree_access'] = 'both'  # Access to all degrees
+
         if request.method == 'POST':
-            quiz_type = request.form.get('quiz_type')
             subject_id = request.form.get('subject_id', type=int)
-            exam_id = request.form.get('exam_id', type=int)
             chapter = request.form.get('chapter')
             selected_topics = request.form.getlist('topics')
             difficulty = request.form.get('difficulty')
             num_questions = request.form.get('num_questions', type=int, default=10)
 
-            # Validate based on quiz type
-            if quiz_type == 'subject_wise':
-                if not subject_id:
-                    flash('Please select a subject for Subject-wise quiz.', 'error')
-                    return redirect(url_for('quiz.quiz', quiz_type=quiz_type))
-            
-                # Generate quiz questions for subject-wise
-                questions = generate_quiz_questions(
-                    quiz_type=quiz_type,
-                    subject_id=subject_id,
-                    chapter=chapter,
-                    topics=selected_topics,
-                    difficulty=difficulty,
-                    num_questions=num_questions,
-                    user_data=user_data,
-                    cursor=cursor
-                )
-
-            elif quiz_type == 'previous_year':
-                if not exam_id:
-                    flash('Please select an exam for Previous Year quiz.', 'error')
-                    return redirect(url_for('quiz.quiz', quiz_type=quiz_type))
-
-                # Generate quiz questions for previous year
-                questions = generate_quiz_questions(
-                    quiz_type=quiz_type,
-                    exam_id=exam_id,
-                    difficulty=difficulty,
-                    num_questions=num_questions,
-                    user_data=user_data,
-                    cursor=cursor
-                )
-            else:
-                flash('Please select a valid quiz type.', 'error')
+            if not subject_id:
+                flash('Please select a subject.', 'error')
                 return redirect(url_for('quiz.quiz'))
+            
+            # Generate quiz questions
+            questions = generate_quiz_questions(
+                subject_id=subject_id,
+                chapter=chapter,
+                topics=selected_topics,
+                difficulty=difficulty,
+                num_questions=num_questions,
+                user_data=user_data,
+                cursor=cursor
+            )
 
             if not questions:
                 flash('No questions found matching your criteria.', 'error')
-                return redirect(url_for('quiz.quiz', quiz_type=quiz_type))
+                return redirect(url_for('quiz.quiz'))
 
             # Initialize quiz session
             quiz_params = {
-                'exam_id': exam_id if quiz_type == 'previous_year' else questions[0]['exam_id'],
-                'subject_id': subject_id if quiz_type == 'subject_wise' else None
+                'subject_id': subject_id
             }
-            init_quiz_session(questions, quiz_type, quiz_params)
+            init_quiz_session(questions, 'subject_wise', quiz_params)
             return redirect(url_for('quiz.take_quiz'))
 
         # Handle GET request - Load filters
-        quiz_type = request.args.get('quiz_type')
         subject_id = request.args.get('subject_id', type=int)
         chapters = []
         topics = []
         subjects = []
-        exams = []
 
-        # Get exams for previous year quiz type
-        cursor.execute('''
-            SELECT DISTINCT e.id, e.name
-            FROM exams e
-            JOIN subjects s ON e.id = s.exam_id
-            JOIN questions q ON s.id = q.subject_id
-            JOIN plan_exam_access pea ON e.id = pea.exam_id
-            WHERE pea.plan_id = %s
-            AND (e.degree_type = %s OR %s = 'both')
-            AND q.is_previous_year = TRUE
-            ORDER BY e.name
-        ''', (user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
-        exams = cursor.fetchall()
-
-        if quiz_type == 'subject_wise':
-            # Get subjects
+        # Get subjects based on user's degree access
+        if user_data['role'] == 'superadmin':
             cursor.execute('''
-                SELECT DISTINCT s.id, s.name, s.exam_id, e.name as exam_name, e.degree_type
+                SELECT DISTINCT s.id, s.name, s.degree_type
                 FROM subjects s
-                JOIN exams e ON s.exam_id = e.id
                 JOIN questions q ON s.id = q.subject_id
-                JOIN plan_exam_access pea ON e.id = pea.exam_id
-                WHERE pea.plan_id = %s
-                AND (e.degree_type = %s OR %s = 'both')
+                ORDER BY s.name
+            ''')
+        else:
+            cursor.execute('''
+                SELECT DISTINCT s.id, s.name, s.degree_type
+                FROM subjects s
+                JOIN questions q ON s.id = q.subject_id
+                JOIN plan_subject_access psa ON s.id = psa.subject_id
+                WHERE psa.plan_id = %s
+                AND (s.degree_type = %s OR %s = 'both')
                 ORDER BY s.name
             ''', (user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
-            subjects = cursor.fetchall()
+        subjects = cursor.fetchall()
 
-            # Get chapters and topics if subject is selected
-            if subject_id:
+        # Get chapters and topics if subject is selected
+        if subject_id:
+            if user_data['role'] == 'superadmin':
                 cursor.execute('''
                     SELECT DISTINCT chapter
                     FROM questions q
                     JOIN subjects s ON q.subject_id = s.id
-                    JOIN exams e ON s.exam_id = e.id
-                    JOIN plan_exam_access pea ON e.id = pea.exam_id
                     WHERE q.subject_id = %s
-                    AND pea.plan_id = %s
-                    AND (e.degree_type = %s OR %s = 'both')
+                    AND q.chapter IS NOT NULL
+                    AND q.chapter != ''
+                    ORDER BY q.chapter
+                ''', (subject_id,))
+            else:
+                cursor.execute('''
+                    SELECT DISTINCT chapter
+                    FROM questions q
+                    JOIN subjects s ON q.subject_id = s.id
+                    JOIN plan_subject_access psa ON s.id = psa.subject_id
+                    WHERE q.subject_id = %s
+                    AND psa.plan_id = %s
+                    AND (s.degree_type = %s OR %s = 'both')
                     AND q.chapter IS NOT NULL
                     AND q.chapter != ''
                     ORDER BY q.chapter
                 ''', (subject_id, user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
-                chapters = [row['chapter'] for row in cursor.fetchall() if row['chapter']]
+            chapters = [row['chapter'] for row in cursor.fetchall() if row['chapter']]
 
-                # Get topics using JSON_TABLE for better performance
+            # Get topics using JSON_TABLE
+            if user_data['role'] == 'superadmin':
                 cursor.execute('''
                     SELECT DISTINCT topic
                     FROM questions q
-                    JOIN subjects s ON q.subject_id = s.id
-                    JOIN exams e ON s.exam_id = e.id
-                    JOIN plan_exam_access pea ON e.id = pea.exam_id,
+                    JOIN subjects s ON q.subject_id = s.id,
                     JSON_TABLE(
                         q.topics,
                         '$[*]' COLUMNS (topic VARCHAR(255) PATH '$')
                     ) AS topics_table
                     WHERE q.subject_id = %s 
-                    AND pea.plan_id = %s
-                    AND (e.degree_type = %s OR %s = 'both')
                     AND q.topics IS NOT NULL
                     AND JSON_LENGTH(q.topics) > 0
                     AND topic IS NOT NULL
-                    AND topic != ''
-                    ORDER BY topic
+                ''', (subject_id,))
+            else:
+                cursor.execute('''
+                    SELECT DISTINCT topic
+                    FROM questions q
+                    JOIN subjects s ON q.subject_id = s.id
+                    JOIN plan_subject_access psa ON s.id = psa.subject_id,
+                    JSON_TABLE(
+                        q.topics,
+                        '$[*]' COLUMNS (topic VARCHAR(255) PATH '$')
+                    ) AS topics_table
+                    WHERE q.subject_id = %s 
+                    AND psa.plan_id = %s
+                    AND (s.degree_type = %s OR %s = 'both')
+                    AND q.topics IS NOT NULL
+                    AND JSON_LENGTH(q.topics) > 0
+                    AND topic IS NOT NULL
                 ''', (subject_id, user_data['plan_id'], user_data['degree_access'], user_data['degree_access']))
-                topics = [row['topic'] for row in cursor.fetchall() if row['topic']]
+            topics = [row['topic'] for row in cursor.fetchall() if row['topic']]
 
-        return render_template('quiz.html',
-                             quiz_type=quiz_type,
+        return render_template('quiz/quiz.html',
                              subjects=subjects,
                              chapters=chapters,
                              topics=topics,
-                             selected_subject_id=subject_id,
-                             user_data=user_data,
-                             exams=exams)
+                             subject_id=subject_id,
+                             user_data=user_data)
 
-    except Exception as e:
-        logger.error(f"Error in quiz route: {str(e)}", exc_info=True)
-        flash('An error occurred while loading the quiz page.', 'error')
+    except Error as err:
+        logger.error(f"Error in quiz route: {str(err)}")
+        flash('An error occurred while loading the quiz.', 'error')
         return redirect(url_for('user.user_dashboard'))
     finally:
-        if 'conn' in locals():
-            conn.close()
+        cursor.close()
+        conn.close()
 
 @quiz_bp.route('/get-subject-filters')
 @login_required
@@ -386,10 +375,9 @@ def take_quiz():
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute('''
-                SELECT q.*, s.name as subject_name, s.exam_id, e.name as exam_name
+                SELECT q.*, s.name as subject_name
                 FROM questions q
                 JOIN subjects s ON q.subject_id = s.id
-                JOIN exams e ON s.exam_id = e.id
                 WHERE q.id = %s
             ''', (question_id,))
             question = cursor.fetchone()
@@ -411,11 +399,7 @@ def take_quiz():
 
             # Handle answer submission
             answer = request.form.get('answer')
-            if not answer:
-                flash('Please select an answer.', 'error')
-                return redirect(url_for('quiz.take_quiz', question_number=current_question))
-
-            # Store the answer
+            # Store the answer even if it's None (unanswered)
             answers[str(question_id)] = answer
             quiz_session['answers'] = answers
             session['quiz_session'] = quiz_session
@@ -447,21 +431,16 @@ def take_quiz():
                 try:
                     cursor.execute('''
                         INSERT INTO results (
-                            user_id, exam_id, subject_id, score, total_questions,
-                            time_taken, answers, question_details, date_taken
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            user_id, subject_id, score, total_questions,
+                            time_taken, answers, date_taken
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ''', (
                         session['user_id'],
-                        question['exam_id'],
                         question['subject_id'] if quiz_session['quiz_type'] == 'subject_wise' else None,
                         score,
                         total_questions,
                         time_taken,
                         json.dumps(answers),
-                        json.dumps({
-                            'question_ids': question_ids,
-                            'answers': answers
-                        }),
                         datetime.now(timezone.utc).replace(tzinfo=None)
                     ))
                     result_id = cursor.lastrowid
@@ -477,7 +456,7 @@ def take_quiz():
                 flash('Quiz submitted successfully!', 'success')
                 return redirect(url_for('quiz.results', result_id=result_id))
 
-        return render_template('take_quiz.html',
+        return render_template('quiz/take_quiz.html',
                              question=question,
                              current_question=current_question,
                              total_questions=total_questions,
@@ -552,18 +531,16 @@ def submit_quiz():
             # Insert the result
             cursor.execute('''
                 INSERT INTO results (
-                    user_id, exam_id, subject_id, score, total_questions,
-                    time_taken, answers, question_details, date_taken
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    user_id, subject_id, score, total_questions,
+                    time_taken, answers, date_taken
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
             ''', (
                 session['user_id'],
-                quiz_session.exam_id,
                 quiz_session.subject_id,
                 score,
                 total_questions,
                 total_time_taken,
                 json.dumps(quiz_session.answers),
-                json.dumps(question_details),
                 current_time.replace(tzinfo=None)
             ))
             
@@ -595,42 +572,45 @@ def submit_quiz():
 def results(result_id):
     """Display quiz results"""
     try:
+        logger.info(f"Fetching results for result_id: {result_id}")
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Get result details with exam and subject information
+        # Get result details with subject information
         cursor.execute('''
-            SELECT r.*, e.name as exam_name, s.name as subject_name 
+            SELECT r.*, s.name as subject_name 
             FROM results r
-            LEFT JOIN exams e ON r.exam_id = e.id
             LEFT JOIN subjects s ON r.subject_id = s.id
             WHERE r.id = %s AND r.user_id = %s
         ''', (result_id, session['user_id']))
         
         result = cursor.fetchone()
+        logger.info(f"Found result: {result}")
         
         if not result:
+            logger.warning(f"Result not found for id: {result_id}")
             flash('Result not found.', 'error')
             return redirect(url_for('quiz.quiz'))
 
-        # Parse stored data
+        # Parse stored answers
         answers = json.loads(result['answers']) if result['answers'] else {}
-        question_details = json.loads(result['question_details']) if result['question_details'] else {}
+        logger.info(f"Parsed answers: {answers}")
         
-        # Get question details from the stored structure
-        question_ids = question_details.get('question_ids', [])
+        # Get question IDs from the answers dictionary
+        question_ids = list(answers.keys())
+        logger.info(f"Question IDs: {question_ids}")
         
         # Get full question details from database
         if question_ids:
             cursor.execute('''
-                SELECT q.*, s.name as subject_name, e.name as exam_name
+                SELECT q.*, s.name as subject_name
                 FROM questions q
                 JOIN subjects s ON q.subject_id = s.id
-                JOIN exams e ON s.exam_id = e.id
                 WHERE q.id IN ({})
             '''.format(','.join(['%s'] * len(question_ids))), question_ids)
             
             questions = cursor.fetchall()
+            logger.info(f"Found {len(questions)} questions")
             
             # Process questions and check answers
             processed_questions = []
@@ -675,6 +655,7 @@ def results(result_id):
                     'hard': sum(1 for q in questions if q['difficulty'] == 'hard')
                 }
             }
+            logger.info(f"Calculated statistics: {statistics}")
 
             # Group questions by chapter and topic for subject-wise quizzes
             if result['subject_id']:
@@ -700,14 +681,16 @@ def results(result_id):
                 
                 statistics['chapter_stats'] = chapter_stats
                 statistics['topic_stats'] = topic_stats
+                logger.info(f"Chapter stats: {chapter_stats}")
+                logger.info(f"Topic stats: {topic_stats}")
 
-            return render_template('quiz_results.html',
+            logger.info("Rendering template with data")
+            return render_template('quiz/quiz_results.html',
                                  result=result,
                                  questions=processed_questions,
                                  statistics=statistics,
-                                 exam_name=result['exam_name'],
                                  subject_name=result['subject_name'],
-                                 quiz_type='previous_year' if result['subject_id'] is None else 'subject_wise')
+                                 quiz_type='subject_wise')
 
     except Exception as e:
         logger.error(f"Error displaying results: {str(e)}", exc_info=True)
@@ -717,61 +700,53 @@ def results(result_id):
         if 'conn' in locals():
             conn.close()
 
-def generate_quiz_questions(quiz_type, subject_id=None, exam_id=None, chapter=None, 
-                          topics=None, difficulty=None, num_questions=10, user_data=None, cursor=None):
+def generate_quiz_questions(subject_id=None, chapter=None, topics=None, difficulty=None, num_questions=10, user_data=None, cursor=None):
     """Generate quiz questions based on selected criteria"""
     try:
         query = '''
-            SELECT DISTINCT q.*, s.name AS subject_name, e.name as exam_name, s.exam_id, e.degree_type
+            SELECT q.*, s.name as subject_name
             FROM questions q
             JOIN subjects s ON q.subject_id = s.id
-            JOIN exams e ON s.exam_id = e.id
-            JOIN plan_exam_access pea ON e.id = pea.exam_id
-            WHERE pea.plan_id = %s
-            AND (e.degree_type = %s OR %s = 'both')
+            WHERE q.subject_id = %s
         '''
-        params = [user_data['plan_id'], user_data['degree_access'], user_data['degree_access']]
+        params = [subject_id]
 
-        if quiz_type == 'subject_wise':
-            if subject_id:
-                query += ' AND q.subject_id = %s'
-                params.append(subject_id)
+        if chapter:
+            query += ' AND q.chapter = %s'
+            params.append(chapter)
 
-                if chapter:
-                    query += ' AND q.chapter = %s'
-                    params.append(chapter)
-
-                if topics:
-                    topic_conditions = []
-                    for topic in topics:
-                        topic_conditions.append('JSON_CONTAINS(q.topics, %s)')
-                        params.append(json.dumps(topic))
-                    if topic_conditions:
-                        query += f' AND ({" OR ".join(topic_conditions)})'
-
-        elif quiz_type == 'previous_year':
-            query += ' AND q.is_previous_year = TRUE'
-            if exam_id:
-                query += ' AND s.exam_id = %s'
-                params.append(exam_id)
+        if topics:
+            topic_conditions = []
+            for topic in topics:
+                topic_conditions.append('JSON_CONTAINS(q.topics, %s)')
+                params.append(f'"{topic}"')
+            query += f' AND ({" OR ".join(topic_conditions)})'
 
         if difficulty:
             query += ' AND q.difficulty = %s'
             params.append(difficulty)
 
+        # Add degree access check for non-superadmin users
+        if user_data['role'] != 'superadmin':
+            query += '''
+                AND EXISTS (
+                    SELECT 1 FROM plan_subject_access psa
+                    WHERE psa.subject_id = s.id
+                    AND psa.plan_id = %s
+                    AND (s.degree_type = %s OR %s = 'both')
+                )
+            '''
+            params.extend([user_data['plan_id'], user_data['degree_access'], user_data['degree_access']])
+
         query += ' ORDER BY RAND() LIMIT %s'
         params.append(num_questions)
 
-        logger.info(f"Executing query with params: {params}")
         cursor.execute(query, params)
-        questions = cursor.fetchall()
-        
-        logger.info(f"Found {len(questions)} questions")
-        return questions
+        return cursor.fetchall()
 
-    except Exception as e:
-        logger.error(f"Error generating quiz questions: {str(e)}", exc_info=True)
-        return []
+    except Error as err:
+        logger.error(f"Error generating quiz questions: {str(err)}")
+        return None
 
 def init_quiz_session(questions: List[Dict], quiz_type: str, quiz_params: dict) -> None:
     """Initialize a new quiz session"""
@@ -788,8 +763,8 @@ def init_quiz_session(questions: List[Dict], quiz_type: str, quiz_params: dict) 
             'start_time': datetime.now(timezone.utc).isoformat(),
             'answers': {},
             'quiz_type': quiz_type,
-            'exam_id': quiz_params['exam_id'],
-            'subject_id': quiz_params['subject_id']
+            'exam_id': quiz_params.get('exam_id', None),
+            'subject_id': quiz_params.get('subject_id', None)
         }
         
         session['quiz_session'] = quiz_session
@@ -846,7 +821,6 @@ def get_question_count():
 
         quiz_type = request.form.get('quiz_type')
         subject_id = request.form.get('subject_id')
-        exam_id = request.form.get('exam_id')
         chapter = request.form.get('chapter')
         topics = request.form.getlist('topics')
         difficulty = request.form.get('difficulty')
@@ -878,10 +852,10 @@ def get_question_count():
                 if topic_conditions:
                     query += f' AND ({" OR ".join(topic_conditions)})'
 
-        elif quiz_type == 'previous_year' and exam_id:
+        elif quiz_type == 'previous_year' and chapter:
             query += ' AND q.is_previous_year = TRUE'
-            query += ' AND s.exam_id = %s'
-            params.append(exam_id)
+            query += ' AND q.chapter = %s'
+            params.append(chapter)
 
         if difficulty:
             query += ' AND q.difficulty = %s'
@@ -896,6 +870,43 @@ def get_question_count():
     except Exception as e:
         logger.error(f"Error getting question count: {str(e)}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@quiz_bp.route('/test-history')
+@login_required
+def test_history():
+    """Display user's quiz history"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get user's quiz history with subject information
+        cursor.execute('''
+            SELECT r.*, s.name as subject_name 
+            FROM results r
+            LEFT JOIN subjects s ON r.subject_id = s.id
+            WHERE r.user_id = %s
+            ORDER BY r.date_taken DESC
+        ''', (session['user_id'],))
+        
+        results = cursor.fetchall()
+        
+        # Process each result to calculate statistics
+        for result in results:
+            answers = json.loads(result['answers']) if result['answers'] else {}
+            result['total_questions'] = len(answers)
+            result['correct_answers'] = sum(1 for ans in answers.values() if ans)
+            result['score_percentage'] = (result['correct_answers'] / result['total_questions'] * 100) if result['total_questions'] > 0 else 0
+            result['time_taken_formatted'] = format_time(result['time_taken'])
+        
+        return render_template('quiz/test_history.html', results=results)
+        
+    except Exception as e:
+        logger.error(f"Error displaying test history: {str(e)}", exc_info=True)
+        flash('Error displaying test history.', 'error')
+        return redirect(url_for('quiz.quiz'))
     finally:
         if 'conn' in locals():
             conn.close() 

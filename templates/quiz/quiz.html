@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Create Quiz</h2>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quiz Settings</h5>
+                    <form method="POST" action="{{ url_for('quiz.quiz') }}">
+                        <div class="form-group mb-3">
+                            <label for="subject_id">Select Subject</label>
+                            <select class="form-control" id="subject_id" name="subject_id" required>
+                                <option value="">Choose a subject</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.id }}" {% if subject_id == subject.id %}selected{% endif %}>
+                                    {{ subject.name }} ({{ subject.degree_type }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="chapter">Select Chapter (Optional)</label>
+                            <select class="form-control" id="chapter" name="chapter">
+                                <option value="">All Chapters</option>
+                                {% for chapter in chapters %}
+                                <option value="{{ chapter }}">{{ chapter }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label>Select Topics (Optional)</label>
+                            <div class="row">
+                                {% for topic in topics %}
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="topics" value="{{ topic }}" id="topic_{{ loop.index }}">
+                                        <label class="form-check-label" for="topic_{{ loop.index }}">{{ topic }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="difficulty">Select Difficulty</label>
+                            <select class="form-control" id="difficulty" name="difficulty">
+                                <option value="">All Difficulties</option>
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="num_questions">Number of Questions</label>
+                            <input type="number" class="form-control" id="num_questions" name="num_questions" value="10" min="1" max="50">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Start Quiz</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const subjectSelect = document.getElementById('subject_id');
+    if (subjectSelect) {
+        subjectSelect.addEventListener('change', function() {
+            const subjectId = this.value;
+            if (subjectId) {
+                window.location.href = `{{ url_for('quiz.quiz') }}?subject_id=${subjectId}`;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

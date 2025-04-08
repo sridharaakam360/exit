@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Question {{ current_question }} of {{ total_questions }}</h5>
+                    <div id="timer" class="text-white">Time: 00:00</div>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ question.question }}</h5>
+                    
+                    <form method="POST" action="{{ url_for('quiz.take_quiz', question_number=current_question) }}" id="quiz-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="time_taken" id="time-taken" value="0">
+                        
+                        <div class="form-group">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="answer" id="option-a" value="a" {% if answer == 'a' %}checked{% endif %}>
+                                <label class="form-check-label" for="option-a">
+                                    A. {{ question.option_a }}
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="answer" id="option-b" value="b" {% if answer == 'b' %}checked{% endif %}>
+                                <label class="form-check-label" for="option-b">
+                                    B. {{ question.option_b }}
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="answer" id="option-c" value="c" {% if answer == 'c' %}checked{% endif %}>
+                                <label class="form-check-label" for="option-c">
+                                    C. {{ question.option_c }}
+                                </label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="answer" id="option-d" value="d" {% if answer == 'd' %}checked{% endif %}>
+                                <label class="form-check-label" for="option-d">
+                                    D. {{ question.option_d }}
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <div class="d-flex justify-content-between">
+                                {% if current_question > 1 %}
+                                <a href="{{ url_for('quiz.take_quiz', question_number=current_question-1) }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </a>
+                                {% else %}
+                                <button type="submit" name="cancel_quiz" value="true" class="btn btn-danger">
+                                    <i class="fas fa-times"></i> Cancel Quiz
+                                </button>
+                                {% endif %}
+                                
+                                {% if current_question < total_questions %}
+                                <button type="submit" name="next_question" value="true" class="btn btn-primary">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
+                                {% else %}
+                                <button type="submit" name="submit_quiz" value="true" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Submit Quiz
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ (current_question / total_questions) * 100 }}%;" 
+                             aria-valuenow="{{ current_question }}" aria-valuemin="0" aria-valuemax="{{ total_questions }}">
+                            {{ current_question }} / {{ total_questions }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let startTime = new Date().getTime();
+        let timerElement = document.getElementById('timer');
+        let timeInput = document.getElementById('time-taken');
+        
+        // Update timer every second
+        setInterval(function() {
+            let currentTime = new Date().getTime();
+            let elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+            let minutes = Math.floor(elapsedSeconds / 60);
+            let seconds = elapsedSeconds % 60;
+            
+            timerElement.textContent = 'Time: ' + 
+                (minutes < 10 ? '0' : '') + minutes + ':' + 
+                (seconds < 10 ? '0' : '') + seconds;
+            
+            timeInput.value = elapsedSeconds;
+        }, 1000);
+    });
+</script>
+{% endblock %}
+{% endblock %} 
