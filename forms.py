@@ -59,13 +59,31 @@ class QuestionForm(FlaskForm):
     is_previous_year = BooleanField('Mark as Previous Year Question')
 
 class UserForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
-    email = StringField('Email', validators=[DataRequired(), Regexp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', message='Invalid email address')])
-    role = SelectField('Role', choices=[('individual', 'Individual User'), ('student', 'Student User'), ('instituteadmin', 'Institute Admin'), ('superadmin', 'Super Admin')], validators=[DataRequired()])
-    user_type = SelectField('User Type', choices=[('individual', 'Individual'), ('institutional', 'Institutional')], validators=[DataRequired()])
-    status = SelectField('Status', choices=[('active', 'Active'), ('inactive', 'Inactive'), ('suspended', 'Suspended')], validators=[DataRequired()])
-    password = PasswordField('New Password (leave blank to keep unchanged)', validators=[Optional(), Length(min=6, max=50, message='Password must be 6-50 characters if provided')])
-    submit = SubmitField('Update User')
+    username = StringField('Username', validators=[
+        DataRequired(),
+        Length(min=3, max=50),
+        Regexp('^[a-zA-Z0-9_]+$', message='Username can only contain letters, numbers, and underscores')
+    ])
+    email = StringField('Email', validators=[
+        DataRequired(),
+        Length(max=120),
+        Regexp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', message='Invalid email address')
+    ])
+    password = PasswordField('Password', validators=[
+        Optional(),
+        Length(min=6, message='Password must be at least 6 characters long')
+    ])
+    role = SelectField('Role', choices=[
+        ('superadmin', 'Super Admin'),
+        ('instituteadmin', 'Institute Admin'),
+        ('individual', 'Individual User'),
+        ('student', 'Student')
+    ], validators=[DataRequired()])
+    status = SelectField('Status', choices=[
+        ('active', 'Active'),
+        ('inactive', 'Inactive')
+    ], validators=[DataRequired()])
+    submit = SubmitField('Add User')
 
 class AddStudentForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])

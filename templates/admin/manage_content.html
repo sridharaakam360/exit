@@ -2,296 +2,170 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8">Content Management</h1>
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Manage Content</h1>
 
-        <!-- Plans Management -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Plans Management</h2>
-            
-            <!-- Add Plan Form -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Add New Plan</h5>
+    <!-- Add New Subject Form -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Add New Subject</h2>
+        <form action="{{ url_for('admin.add_subject') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label for="subject_name" class="block text-sm font-medium text-gray-700 mb-2">Subject Name</label>
+                    <input type="text" id="subject_name" name="subject_name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
-                <div class="card-body">
-                    <form action="{{ url_for('admin.add_plan') }}" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="name" class="form-label">Plan Name</label>
-                                <input type="text" class="form-control" id="name" name="name" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="price" class="form-label">Price</label>
-                                <input type="number" class="form-control" id="price" name="price" step="0.01" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="duration" class="form-label">Duration (months)</label>
-                                <input type="number" class="form-control" id="duration" name="duration" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="degree_access" class="form-label">Degree Access</label>
-                                <select class="form-select" id="degree_access" name="degree_access" required>
-                                    <option value="both">Both</option>
-                                    <option value="Dpharm">D.Pharm</option>
-                                    <option value="Bpharm">B.Pharm</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="student_range" class="form-label">Student Range</label>
-                                <input type="number" class="form-control" id="student_range" name="student_range" value="50" disabled>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="description" class="form-label">Description</label>
-                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-3 mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="includes_previous_years" name="includes_previous_years">
-                                    <label class="form-check-label" for="includes_previous_years">
-                                        Includes Previous Years
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="is_institution" name="is_institution" onchange="toggleStudentRange()">
-                                    <label class="form-check-label" for="is_institution">
-                                        Institution Plan
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="custom_student_range" name="custom_student_range" disabled>
-                                    <label class="form-check-label" for="custom_student_range">
-                                        Custom Student Range
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Plan</button>
-                    </form>
+                {% if has_degree_type %}
+                <div>
+                    <label for="degree_type" class="block text-sm font-medium text-gray-700 mb-2">Degree Type</label>
+                    <select id="degree_type" name="degree_type" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select Degree Type</option>
+                        <option value="Dpharm">D.Pharm</option>
+                        <option value="Bpharm">B.Pharm</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div class="md:col-span-2">
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea id="description" name="description" rows="1"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
                 </div>
             </div>
-
-            <!-- Plans List -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Subscription Plans</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Price</th>
-                                    <th>Duration</th>
-                                    <th>Degree Access</th>
-                                    <th>Student Range</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for plan in plans %}
-                                <tr>
-                                    <td>{{ plan.name }}</td>
-                                    <td>{{ plan.price }}</td>
-                                    <td>{{ plan.duration_months }} months</td>
-                                    <td>{{ plan.degree_access }}</td>
-                                    <td>{{ plan.student_range }}</td>
-                                    <td>
-                                        <form action="{{ url_for('admin.delete_plan', plan_id=plan.id) }}" method="POST" style="display: inline;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this plan?')">Delete</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-plus mr-2"></i>Add Subject
+                </button>
             </div>
-        </div>
+        </form>
+    </div>
 
-        <!-- Exams Management -->
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Exams Management</h2>
-            
-            <!-- Add New Exam -->
-            <form action="{{ url_for('admin.add_exam') }}" method="POST" class="mb-6">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Exam Name</label>
-                        <input type="text" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Degree Type</label>
-                        <select name="degree_type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="Dpharm">D.Pharm</option>
-                            <option value="Bpharm">B.Pharm</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Description</label>
-                        <input type="text" name="description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-                </div>
-                <button type="submit" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Exam</button>
-            </form>
-
-            <!-- Exams List -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Degree</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for exam in exams %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ exam.name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ exam.degree_type }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ exam.description }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <form action="{{ url_for('admin.delete_exam', exam_id=exam.id) }}" method="POST" class="inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this exam?')">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Subjects Management -->
-        <div class="bg-white rounded-lg shadow-lg p-6">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Subjects Management</h2>
-            
-            <!-- Add New Subject -->
-            <form action="{{ url_for('admin.add_subject') }}" method="POST" class="mb-6">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Subject Name</label>
-                        <input type="text" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Degree Type</label>
-                        <select name="degree_type" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Select Degree</option>
-                            <option value="D.Pharm">D.Pharm</option>
-                            <option value="B.Pharm">B.Pharm</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700">Description</label>
-                    <input type="text" name="description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-                <button type="submit" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Add Subject</button>
-            </form>
-
-            <!-- Subjects List -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Degree</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        {% for subject in subjects %}
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ subject.name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ subject.degree_type }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">{{ subject.description }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+    <!-- Subjects List -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Subjects</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject Name</th>
+                        {% if has_degree_type %}
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Degree Type</th>
+                        {% endif %}
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for subject in subjects %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ subject.name }}</td>
+                        {% if has_degree_type %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ subject.degree_type }}</td>
+                        {% endif %}
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ subject.description }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div class="flex space-x-2">
+                                <a href="{{ url_for('admin.edit_subject', subject_id=subject.id) }}" 
+                                   class="text-blue-600 hover:text-blue-900">
+                                    <i class="fas fa-edit"></i>
+                                </a>
                                 <form action="{{ url_for('admin.delete_subject', subject_id=subject.id) }}" method="POST" class="inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this subject?')">Delete</button>
+                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this subject?');" 
+                                            class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add New Plan Form -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Add New Subscription Plan</h2>
+        <form action="{{ url_for('admin.add_plan') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label for="plan_name" class="block text-sm font-medium text-gray-700 mb-2">Plan Name</label>
+                    <input type="text" id="plan_name" name="plan_name" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="price" class="block text-sm font-medium text-gray-700 mb-2">Price (₹)</label>
+                    <input type="number" id="price" name="price" step="0.01" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">Duration (months)</label>
+                    <input type="number" id="duration" name="duration" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="degree_access" class="block text-sm font-medium text-gray-700 mb-2">Degree Access</label>
+                    <select id="degree_access" name="degree_access" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select Degree</option>
+                        <option value="Dpharm">D.Pharm</option>
+                        <option value="Bpharm">B.Pharm</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
             </div>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-plus mr-2"></i>Add Plan
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Subscription Plans List -->
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Subscription Plans</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Degree Access</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for plan in plans %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ plan.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{{ plan.price }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ plan.duration }} months</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ plan.degree_access }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div class="flex space-x-2">
+                                <a href="{{ url_for('admin.edit_plan', plan_id=plan.id) }}" 
+                                   class="text-blue-600 hover:text-blue-900">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('admin.delete_plan', plan_id=plan.id) }}" method="POST" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" onclick="return confirm('Are you sure you want to delete this plan?');" 
+                                            class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
-
-<script>
-function toggleStudentRange() {
-    const isInstitution = document.getElementById('is_institution').checked;
-    const studentRange = document.getElementById('student_range');
-    const customStudentRange = document.getElementById('custom_student_range');
-    
-    studentRange.disabled = !isInstitution;
-    customStudentRange.disabled = !isInstitution;
-    
-    if (!isInstitution) {
-        studentRange.value = 50;
-        customStudentRange.checked = false;
-    }
-}
-
-function updateDegreeDisplay(selectElement) {
-    const selectedOption = selectElement.options[selectElement.selectedIndex];
-    const degreeDisplay = document.getElementById('degree_display');
-    degreeDisplay.value = selectedOption.dataset.degree;
-}
-
-// Initialize degree display on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const examSelect = document.querySelector('select[name="exam_id"]');
-    if (examSelect) {
-        updateDegreeDisplay(examSelect);
-    }
-});
-
-function updateExamSelection() {
-    const degreeSelect = document.getElementById('degree_type');
-    const examSelect = document.getElementById('exam_id');
-    const selectedDegree = degreeSelect.value;
-    
-    // Reset exam selection
-    examSelect.value = '';
-    
-    // Filter and enable/disable exam options based on selected degree
-    Array.from(examSelect.options).forEach(option => {
-        if (option.value === '') return; // Skip the placeholder option
-        
-        if (option.dataset.degree === selectedDegree) {
-            option.disabled = false;
-        } else {
-            option.disabled = true;
-        }
-    });
-}
-
-// Initialize exam selection on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateExamSelection();
-});
-</script>
 {% endblock %} 

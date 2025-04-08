@@ -1,7 +1,7 @@
 # admin.py
-from flask import Blueprint, render_template, redirect, url_for, flash, session, request, jsonify, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, session, request, jsonify, send_file, current_app
 from utils.db import get_db_connection
-from utils.security import super_admin_required, institute_admin_required
+from utils.security import super_admin_required
 from forms import QuestionForm, UserForm
 from datetime import datetime
 import json
@@ -14,108 +14,55 @@ import csv
 from werkzeug.utils import secure_filename
 import os
 from functools import wraps
+from flask_login import login_required, current_user
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
 
-def superadmin_required(f):
+def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session.get('role') != 'superadmin':
-            flash('Access denied. Superadmin privileges required.', 'error')
-            return redirect(url_for('user.user_dashboard'))
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('Access denied. Admin privileges required.', 'error')
+            return redirect(url_for('main.index'))
         return f(*args, **kwargs)
     return decorated_function
 
 @admin_bp.route('/dashboard')
-@super_admin_required
+@login_required
+@admin_required
 def admin_dashboard():
     conn = get_db_connection()
     if conn is None:
         flash('Database connection error.', 'danger')
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('index'))
     
     cursor = conn.cursor(dictionary=True)
-    
     try:
-        # Get active users count (users with active subscription or non-individual users)
+        # Get user counts by role
         cursor.execute('''
-            SELECT COUNT(*) as active_users 
-            FROM users u 
-            WHERE u.role != 'individual' 
-            OR (u.role = 'individual' 
-                AND u.subscription_status = 'active' 
-                AND u.subscription_end >= CURDATE())
-        ''')
-        result = cursor.fetchone()
-        active_users = result['active_users'] if result else 0
-        
-        # Get total questions count
-        cursor.execute('SELECT COUNT(*) as total_questions FROM questions')
-        result = cursor.fetchone()
-        total_questions = result['total_questions'] if result else 0
-        
-        # Get total quizzes count
-        cursor.execute('SELECT COUNT(*) as total_quizzes FROM results')
-        result = cursor.fetchone()
-        total_quizzes = result['total_quizzes'] if result else 0
-
-        # Get institution stats
-        cursor.execute('''
-            SELECT 
-                COUNT(*) as total_institutions,
-                COUNT(CASE WHEN subscription_plan_id IS NOT NULL THEN 1 END) as subscribed_institutions,
-                COUNT(CASE WHEN subscription_end >= CURDATE() THEN 1 END) as active_subscriptions
-            FROM institutions
-        ''')
-        institution_stats = cursor.fetchone()
-
-        # Get student stats
-        cursor.execute('''
-            SELECT 
-                COUNT(*) as total_students,
-                COUNT(CASE WHEN status = 'active' THEN 1 END) as active_students,
-                COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_students
+            SELECT role, COUNT(*) as count 
             FROM users 
-            WHERE role = 'student'
+            WHERE role != 'superadmin'
+            GROUP BY role
         ''')
-        student_stats = cursor.fetchone()
+        user_counts = cursor.fetchall()
         
-        # Get recent activity with proper error handling
-        try:
-            cursor.execute('''
-                SELECT u.username, r.date_taken as date, 
-                       CONCAT('Score: ', r.score, '/', r.total_questions) as content,
-                       'result' as type
-                FROM results r
-                JOIN users u ON r.user_id = u.id
-                ORDER BY r.date_taken DESC
-                LIMIT 5
-            ''')
-            recent_activity = cursor.fetchall() or []
-        except Error as err:
-            logger.error(f"Error fetching recent activity: {str(err)}")
-            recent_activity = []
+        # Get content counts
+        cursor.execute('SELECT COUNT(*) as count FROM subjects')
+        subjects_count = cursor.fetchone()['count']
         
-        return render_template('admin_dashboard.html',
-                            active_users=active_users,
-                            total_questions=total_questions,
-                            total_quizzes=total_quizzes,
-                            recent_activity=recent_activity,
-                            institution_stats=institution_stats,
-                            student_stats=student_stats,
-                            now=datetime.now())
+        cursor.execute('SELECT COUNT(*) as count FROM questions')
+        questions_count = cursor.fetchone()['count']
+        
+        return render_template('admin/dashboard.html',
+                             user_counts=user_counts,
+                             subjects_count=subjects_count,
+                             questions_count=questions_count)
     except Error as err:
-        logger.error(f"Database error in admin dashboard: {str(err)}")
-        flash('Error retrieving dashboard data.', 'danger')
-        return render_template('admin_dashboard.html',
-                            active_users=0,
-                            total_questions=0,
-                            total_quizzes=0,
-                            recent_activity=[],
-                            institution_stats={'total_institutions': 0, 'subscribed_institutions': 0, 'active_subscriptions': 0},
-                            student_stats={'total_students': 0, 'active_students': 0, 'inactive_students': 0},
-                            now=datetime.now())
+        logger.error(f"Error in admin_dashboard: {str(err)}")
+        flash('Error loading dashboard.', 'danger')
+        return redirect(url_for('index'))
     finally:
         cursor.close()
         conn.close()
@@ -204,7 +151,7 @@ def manage_questions():
         cursor.execute(base_query, query_params)
         questions = cursor.fetchall()
 
-        return render_template('manage_questions.html', 
+        return render_template('admin/manage_questions.html', 
                              questions=questions, 
                              subjects=subjects, 
                              form=form, 
@@ -274,7 +221,7 @@ def edit_question(question_id):
             flash('Question updated successfully.', 'success')
             return redirect(url_for('admin.manage_questions'))
 
-        return render_template('edit_question.html', form=form, question_id=question_id)
+        return render_template('admin/edit_question.html', form=form, question_id=question_id)
     
     except Error as err:
         conn.rollback()
@@ -315,7 +262,8 @@ def delete_question(qid):
     return redirect(url_for('admin.manage_questions'))
 
 @admin_bp.route('/manage_users', methods=['GET', 'POST'])
-@institute_admin_required  # Changed from super_admin_required
+@login_required
+@admin_required
 def manage_users():
     conn = get_db_connection()
     if conn is None:
@@ -324,59 +272,57 @@ def manage_users():
     
     cursor = conn.cursor(dictionary=True)
     try:
-        user_type = request.args.get('type', 'all')
         page = request.args.get('page', 1, type=int)
+        user_type = request.args.get('type', 'all')
         per_page = 20
         offset = (page - 1) * per_page
-        is_superadmin = session['role'] == 'superadmin'
-
-        if is_superadmin and user_type == 'all':
-            cursor.execute('SELECT COUNT(*) AS total FROM users')
-            total = cursor.fetchone()['total']
-            cursor.execute('''SELECT role, COUNT(*) AS count, MAX(last_active) AS last_active 
-                            FROM users GROUP BY role 
-                            ORDER BY FIELD(role, 'superadmin', 'instituteadmin', 'student', 'individual') 
-                            LIMIT %s OFFSET %s''', (per_page, offset))
-            users = cursor.fetchall()
-            total_pages = (total + per_page - 1) // per_page
-            return render_template('manage_users.html', users=users, view_type='summary', current_type='all', page=page, total_pages=total_pages)
-
-        elif user_type in ['individual', 'student', 'superadmin', 'instituteadmin']:
-            if not is_superadmin and user_type != 'student':
-                flash('You can only manage students in your institution.', 'danger')
-                return redirect(url_for('institution.institution_dashboard'))
-            
-            if not is_superadmin:  # Institute admin viewing their students
-                cursor.execute('SELECT COUNT(*) AS total FROM users WHERE role = %s AND institution_id = %s', 
-                             ('student', session['institution_id']))
-                total = cursor.fetchone()['total']
-                cursor.execute('''SELECT u.*, COUNT(DISTINCT r.id) AS quiz_count, 
-                                AVG(r.score / r.total_questions * 100) AS avg_score, 
-                                MAX(r.date_taken) AS last_quiz_date, i.name AS institution_name 
-                                FROM users u LEFT JOIN results r ON u.id = r.user_id 
-                                LEFT JOIN institutions i ON u.institution_id = i.id 
-                                WHERE u.role = %s AND u.institution_id = %s
-                                GROUP BY u.id ORDER BY u.username 
-                                LIMIT %s OFFSET %s''', 
-                                ('student', session['institution_id'], per_page, offset))
-            else:  # Superadmin viewing all users of a type
-                cursor.execute(f'SELECT COUNT(*) AS total FROM users WHERE role = %s', (user_type,))
-                total = cursor.fetchone()['total']
-                cursor.execute(f'''SELECT u.*, COUNT(DISTINCT r.id) AS quiz_count, 
-                                AVG(r.score / r.total_questions * 100) AS avg_score, 
-                                MAX(r.date_taken) AS last_quiz_date, i.name AS institution_name 
-                                FROM users u LEFT JOIN results r ON u.id = r.user_id 
-                                LEFT JOIN institutions i ON u.institution_id = i.id 
-                                WHERE u.role = %s 
-                                GROUP BY u.id ORDER BY u.username 
-                                LIMIT %s OFFSET %s''', (user_type, per_page, offset))
-            
-            users = cursor.fetchall()
-            total_pages = (total + per_page - 1) // per_page
-            return render_template('manage_users.html', users=users, view_type='users', current_type=user_type, page=page, total_pages=total_pages, is_superadmin=is_superadmin)
-
+        
+        # Get counts for each user type
+        cursor.execute('''
+            SELECT 
+                role,
+                COUNT(*) as count,
+                MAX(last_active) as last_active
+            FROM users 
+            WHERE role != 'superadmin'
+            GROUP BY role
+        ''')
+        user_counts = {row['role']: {'count': row['count'], 'last_active': row['last_active']} for row in cursor.fetchall()}
+        
+        # Build the WHERE clause based on user type
+        if user_type == 'all':
+            where_clause = 'u.role != "superadmin"'
+        else:
+            where_clause = f'u.role = "{user_type}"'
+        
+        # Get total count
+        cursor.execute(f'SELECT COUNT(*) as total FROM users u WHERE {where_clause}')
+        total_users = cursor.fetchone()['total']
+        total_pages = (total_users + per_page - 1) // per_page
+        
+        # Get paginated users with institution info
+        cursor.execute(f'''
+            SELECT u.*, sp.name as plan_name,
+                   i.name as institution_name, i.institution_code,
+                   u.last_active
+            FROM users u 
+            LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id 
+            LEFT JOIN institution_students is_rel ON u.id = is_rel.user_id
+            LEFT JOIN institutions i ON is_rel.institution_id = i.id
+            WHERE {where_clause}
+            ORDER BY u.created_at DESC
+            LIMIT %s OFFSET %s
+        ''', (per_page, offset))
+        users = cursor.fetchall()
+        
+        return render_template('admin/manage_users.html', 
+                             users=users,
+                             page=page,
+                             total_pages=total_pages,
+                             total_users=total_users,
+                             user_type=user_type,
+                             user_counts=user_counts)
     except Error as err:
-        conn.rollback()
         logger.error(f"Database error in manage_users: {str(err)}")
         flash('Error retrieving users.', 'danger')
         return redirect(url_for('admin.admin_dashboard'))
@@ -385,52 +331,113 @@ def manage_users():
         conn.close()
 
 @admin_bp.route('/add_user', methods=['GET', 'POST'])
-@super_admin_required
+@login_required
+@admin_required
 def add_user():
+    conn = get_db_connection()
+    if conn is None:
+        flash('Database connection error.', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    
+    cursor = conn.cursor(dictionary=True)
     form = UserForm()
     
-    if request.method == 'POST' and form.validate_on_submit():
-        conn = get_db_connection()
-        if conn is None:
-            flash('Database connection error.', 'danger')
-            return redirect(url_for('admin.manage_users'))
+    try:
+        if request.method == 'POST':
+            logger.info(f"Form data: {request.form}")
+            logger.info(f"Form validation: {form.validate_on_submit()}")
+            logger.info(f"Form errors: {form.errors}")
+            
+            if form.validate_on_submit():
+                # Check if username or email already exists
+                cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', 
+                            (form.username.data, form.email.data))
+                if cursor.fetchone():
+                    flash('Username or email already exists.', 'danger')
+                    return redirect(url_for('admin.add_user'))
+                
+                password_hash = generate_password_hash(form.password.data)
+                
+                try:
+                    # Insert user
+                    logger.info(f"Inserting user: {form.username.data}, {form.email.data}, {form.role.data}")
+                    
+                    cursor.execute('''
+                        INSERT INTO users (username, email, password_hash, role, status)
+                        VALUES (%s, %s, %s, %s, %s)
+                    ''', (form.username.data, form.email.data, password_hash, form.role.data, form.status.data))
+                    user_id = cursor.lastrowid
+                    logger.info(f"User inserted with ID: {user_id}")
+                    
+                    # For students, link to institution
+                    if form.role.data == 'student':
+                        institute_code = request.form.get('institute_code')
+                        if not institute_code:
+                            raise ValueError('Institute code is required for student users')
+                        
+                        cursor.execute('SELECT id FROM institutions WHERE institution_code = %s', (institute_code,))
+                        institution = cursor.fetchone()
+                        if not institution:
+                            raise ValueError('Invalid institute code')
+                        institution_id = institution['id']
+                        
+                        cursor.execute('''
+                            INSERT INTO institution_students (institution_id, user_id)
+                            VALUES (%s, %s)
+                        ''', (institution_id, user_id))
+                        logger.info(f"Student linked to institution with ID: {institution_id}")
+                    
+                    # If role is instituteadmin, create institution
+                    if form.role.data == 'instituteadmin':
+                        institute_name = request.form.get('institute_name')
+                        institute_code = request.form.get('institute_code_admin')
+                        
+                        logger.info(f"Institute data: {institute_name}, {institute_code}")
+                        
+                        if not institute_name or not institute_code:
+                            raise ValueError('Institute name and code are required for institute admin')
+                        
+                        cursor.execute('SELECT id FROM institutions WHERE institution_code = %s', (institute_code,))
+                        if cursor.fetchone():
+                            raise ValueError('Institution code already exists')
+                        
+                        cursor.execute('''
+                            INSERT INTO institutions (name, institution_code, admin_id, email)
+                            VALUES (%s, %s, %s, %s)
+                        ''', (institute_name, institute_code, user_id, form.email.data))
+                        institution_id = cursor.lastrowid
+                        logger.info(f"Institution created with ID: {institution_id}")
+                    
+                    conn.commit()
+                    logger.info("Transaction committed successfully")
+                    flash('User added successfully.', 'success')
+                    return redirect(url_for('admin.manage_users'))
+                except ValueError as e:
+                    conn.rollback()
+                    logger.error(f"Validation error: {str(e)}")
+                    flash(str(e), 'danger')
+                    return redirect(url_for('admin.add_user'))
+                except Error as e:
+                    conn.rollback()
+                    logger.error(f"Database error: {str(e)}")
+                    raise e
+            else:
+                logger.error(f"Form validation failed: {form.errors}")
+                flash('Please correct the errors in the form.', 'danger')
         
-        cursor = conn.cursor(dictionary=True)
-        try:
-            username = form.username.data
-            password = form.password.data
-            role = form.role.data
-            status = form.status.data
-            
-            cursor.execute('SELECT id FROM users WHERE username = %s', (username,))
-            if cursor.fetchone():
-                flash('Username already exists.', 'danger')
-                return render_template('edit_user.html', form=form, is_edit=False)
-            
-            password_hash = generate_password_hash(password) if password else None
-            
-            cursor.execute('''INSERT INTO users 
-                (username, role, status, password_hash, created_at)
-                VALUES (%s, %s, %s, %s, NOW())''',
-                (username, role, status, password_hash))
-            conn.commit()
-            
-            flash('User added successfully.', 'success')
-            return redirect(url_for('admin.manage_users'))
-        
-        except Error as err:
-            conn.rollback()
-            logger.error(f"Database error in add_user: {str(err)}")
-            flash('Error adding user.', 'danger')
-            return render_template('edit_user.html', form=form, is_edit=False)
-        finally:
-            cursor.close()
-            conn.close()
-    
-    return render_template('edit_user.html', form=form, is_edit=False)
+        return render_template('admin/add_user.html', form=form)
+    except Error as err:
+        conn.rollback()
+        logger.error(f"Database error in add_user: {str(err)}")
+        flash('Error adding user.', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    finally:
+        cursor.close()
+        conn.close()
 
 @admin_bp.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
-@institute_admin_required  # Changed from super_admin_required
+@login_required
+@admin_required
 def edit_user(user_id):
     conn = get_db_connection()
     if conn is None:
@@ -440,69 +447,84 @@ def edit_user(user_id):
     cursor = conn.cursor(dictionary=True)
     try:
         form = UserForm()
-        is_superadmin = session['role'] == 'superadmin'
-        
-        # Check user exists and permissions
-        if is_superadmin:
-            cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
-        else:  # Institute admin can only edit their students
-            cursor.execute('''SELECT u.* FROM users u 
-                            JOIN institution_students ist ON u.id = ist.user_id
-                            WHERE u.id = %s AND ist.institution_id = %s AND u.role = 'student' ''', 
-                          (user_id, session['institution_id']))
-        
-        user = cursor.fetchone()
-        if not user:
-            flash('User not found or not authorized.', 'danger')
-            return redirect(url_for('admin.manage_users'))
-        
         if request.method == 'GET':
+            # Get user data
+            cursor.execute('''
+                SELECT u.*, i.name as institution_name, i.institution_code
+                FROM users u
+                LEFT JOIN institution_students is_rel ON u.id = is_rel.user_id
+                LEFT JOIN institutions i ON is_rel.institution_id = i.id
+                WHERE u.id = %s
+            ''', (user_id,))
+            user = cursor.fetchone()
+            
+            if not user:
+                flash('User not found.', 'danger')
+                return redirect(url_for('admin.manage_users'))
+            
             form.username.data = user['username']
             form.email.data = user['email']
             form.role.data = user['role']
-            form.user_type.data = user['user_type']
             form.status.data = user['status']
         
-        elif form.validate_on_submit():
-            username = form.username.data
-            email = form.email.data 
-            role = form.role.data if is_superadmin else 'student'  # Institute admins can't change role
-            user_type = form.user_type.data if is_superadmin else 'institutional'
-            status = form.status.data
-            password = form.password.data
+        if request.method == 'POST' and form.validate_on_submit():
+            # Update user basic info
+            if form.password.data:
+                password_hash = generate_password_hash(form.password.data)
+                cursor.execute('''
+                    UPDATE users 
+                    SET username = %s, email = %s, password_hash = %s, role = %s, status = %s
+                    WHERE id = %s
+                ''', (form.username.data, form.email.data, password_hash, form.role.data, form.status.data, user_id))
+            else:
+                cursor.execute('''
+                    UPDATE users 
+                    SET username = %s, email = %s, role = %s, status = %s
+                    WHERE id = %s
+                ''', (form.username.data, form.email.data, form.role.data, form.status.data, user_id))
             
-            cursor.execute('SELECT id FROM users WHERE (username = %s OR email = %s) AND id != %s', 
-                          (username, email, user_id))
-            existing_user = cursor.fetchone()
-            if existing_user:
-                flash('Username or email already exists for another user.', 'danger')
-                return render_template('edit_user.html', form=form, user_id=user_id, is_edit=True)
-            
-            try:
-                conn.autocommit = False
-                if password:
-                    password_hash = generate_password_hash(password)
-                    cursor.execute('''UPDATE users 
-                        SET username = %s, email = %s, role = %s, user_type = %s, status = %s, password_hash = %s
-                        WHERE id = %s''',
-                        (username, email, role, user_type, status, password_hash, user_id))
+            # Handle student institution relationship
+            if form.role.data == 'student':
+                institute_code = request.form.get('institute_code')
+                if institute_code:
+                    # Get institution by code
+                    cursor.execute('SELECT id FROM institutions WHERE institution_code = %s', (institute_code,))
+                    institution = cursor.fetchone()
+                    
+                    if institution:
+                        # Check if relationship already exists
+                        cursor.execute('''
+                            SELECT id FROM institution_students 
+                            WHERE user_id = %s
+                        ''', (user_id,))
+                        existing = cursor.fetchone()
+                        
+                        if existing:
+                            # Update existing relationship
+                            cursor.execute('''
+                                UPDATE institution_students 
+                                SET institution_id = %s 
+                                WHERE user_id = %s
+                            ''', (institution['id'], user_id))
+                        else:
+                            # Create new relationship
+                            cursor.execute('''
+                                INSERT INTO institution_students (institution_id, user_id)
+                                VALUES (%s, %s)
+                            ''', (institution['id'], user_id))
+                    else:
+                        flash('Invalid institute code. Student will not be linked to any institution.', 'warning')
                 else:
-                    cursor.execute('''UPDATE users 
-                        SET username = %s, email = %s, role = %s, user_type = %s, status = %s
-                        WHERE id = %s''',
-                        (username, email, role, user_type, status, user_id))
-                
-                conn.commit()
-                flash('User updated successfully.', 'success')
-                return redirect(url_for('admin.manage_users', type='student' if not is_superadmin else None))
-            except Error as err:
-                conn.rollback()
-                logger.error(f"Database error during update: {str(err)}")
-                flash(f'Error updating user: {str(err)}', 'danger')
+                    # Remove institution relationship if no code provided
+                    cursor.execute('DELETE FROM institution_students WHERE user_id = %s', (user_id,))
+            
+            conn.commit()
+            flash('User updated successfully.', 'success')
+            return redirect(url_for('admin.manage_users'))
         
-        return render_template('edit_user.html', form=form, user_id=user_id, is_edit=True, is_superadmin=is_superadmin)
-    
+        return render_template('admin/edit_user.html', form=form, user_id=user_id, is_edit=True)
     except Error as err:
+        conn.rollback()
         logger.error(f"Database error in edit_user: {str(err)}")
         flash('Error updating user.', 'danger')
         return redirect(url_for('admin.manage_users'))
@@ -510,467 +532,414 @@ def edit_user(user_id):
         cursor.close()
         conn.close()
 
-@admin_bp.route('/delete_admin_user/<int:user_id>', methods=['POST'])
-@institute_admin_required  # Changed from super_admin_required
-def delete_admin_user(user_id):
-    if user_id == session['user_id']:
-        flash('You cannot delete your own account.', 'danger')
+@admin_bp.route('/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    conn = get_db_connection()
+    if conn is None:
+        flash('Database connection error.', 'danger')
         return redirect(url_for('admin.manage_users'))
     
-    conn = None
-    cursor = None
-    
+    cursor = conn.cursor(dictionary=True)
     try:
-        conn = get_db_connection()
-        if conn is None:
-            flash('Database connection error.', 'danger')
-            return redirect(url_for('admin.manage_users'))
+        # Check if user is an admin of any institution
+        cursor.execute('SELECT id FROM institutions WHERE admin_id = %s', (user_id,))
+        institution = cursor.fetchone()
         
-        conn.autocommit = False
-        cursor = conn.cursor(dictionary=True)
-        
-        is_superadmin = session['role'] == 'superadmin'
-        
-        if is_superadmin:
-            cursor.execute('SELECT role FROM users WHERE id = %s', (user_id,))
-        else:
-            cursor.execute('''SELECT u.role FROM users u 
-                            JOIN institution_students ist ON u.id = ist.user_id
-                            WHERE u.id = %s AND ist.institution_id = %s AND u.role = 'student' ''', 
-                          (user_id, session['institution_id']))
-        
-        user = cursor.fetchone()
-        if not user:
-            flash('User not found or not authorized.', 'danger')
+        if institution:
+            # User is an admin of an institution, cannot be deleted
+            flash('Cannot delete user because they are an admin of an institution. Please reassign or delete the institution first.', 'danger')
             return redirect(url_for('admin.manage_users'))
 
-        if is_superadmin and user['role'] == 'superadmin':
-            cursor.execute('SELECT COUNT(*) AS count FROM users WHERE role = "superadmin"')
-            if cursor.fetchone()['count'] <= 1:
-                flash('Cannot delete the last superadmin.', 'danger')
-                return redirect(url_for('admin.manage_users'))
-
-        cursor.execute('DELETE FROM question_reviews WHERE user_id = %s', (user_id,))
-        cursor.execute('DELETE FROM results WHERE user_id = %s', (user_id,))
-        cursor.execute('DELETE FROM subscription_history WHERE user_id = %s', (user_id,))
-        cursor.execute('DELETE FROM institution_students WHERE user_id = %s', (user_id,))
-        if is_superadmin:
-            cursor.execute('UPDATE institutions SET admin_id = NULL WHERE admin_id = %s', (user_id,))
-        cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
-        
+        # Delete user
+        cursor.execute('DELETE FROM users WHERE id = %s AND role != "superadmin"', (user_id,))
         conn.commit()
         flash('User deleted successfully.', 'success')
-    
+        return redirect(url_for('admin.manage_users'))
     except Error as err:
-        if conn:
-            conn.rollback()
+        conn.rollback()
         logger.error(f"Database error in delete_user: {str(err)}")
         flash('Error deleting user.', 'danger')
+        return redirect(url_for('admin.manage_users'))
+    finally:
+        cursor.close()
+        conn.close()
+
+@admin_bp.route('/manage_content')
+@login_required
+@admin_required
+def manage_content():
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
     
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if degree_type column exists
+        cursor.execute("SHOW COLUMNS FROM subjects LIKE 'degree_type'")
+        has_degree_type = cursor.fetchone() is not None
+        
+        # Get all subjects
+        cursor.execute("""
+            SELECT id, name, degree_type, description
+            FROM subjects
+            ORDER BY name
+        """)
+        subjects = cursor.fetchall()
+        
+        # Get all subscription plans
+        cursor.execute("""
+            SELECT id, name, price, duration_months as duration, degree_access
+            FROM subscription_plans
+            ORDER BY name
+        """)
+        plans = cursor.fetchall()
+        
+        return render_template('admin/manage_content.html',
+                            subjects=subjects,
+                            plans=plans,
+                            has_degree_type=has_degree_type)
+            
+    except Exception as e:
+        logger.error(f"Error in manage_content: {str(e)}")
+        flash('An error occurred while loading content management', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
     finally:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
-    
-    return redirect(url_for('admin.manage_users', type='student' if session['role'] == 'instituteadmin' else None))
 
-@admin_bp.route('/download_template/<format>')
-@super_admin_required
-def download_template(format):
+@admin_bp.route('/add_subject', methods=['POST'])
+@login_required
+@admin_required
+def add_subject():
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
+    
+    cursor = None
     try:
-        # Define template data
-        template_data = {
-            'Question': ['Sample question 1?', 'Sample question 2?'],
-            'Option A': ['Option A1', 'Option A2'],
-            'Option B': ['Option B1', 'Option B2'],
-            'Option C': ['Option C1', 'Option C2'],
-            'Option D': ['Option D1', 'Option D2'],
-            'Correct Answer': ['A', 'B'],
-            'chapter': ['chapter1', 'chapter2'],
-            'Difficulty': ['easy', 'medium'],
-            'Subject ID': ['1', '2'],
-            'Is Previous Year': ['FALSE', 'TRUE'],
-            'Previous Year': ['', '2022'],
-            'Topics': ['topic1,topic2', 'topic3,topic4'],
-            'Explanation': ['Explanation for question 1', 'Explanation for question 2']
-        }
-
-        if format == 'csv':
-            # Create CSV in memory
-            output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=template_data.keys())
-            writer.writeheader()
-            
-            # Write sample rows
-            for i in range(len(template_data['Question'])):
-                row = {k: template_data[k][i] for k in template_data.keys()}
-                writer.writerow(row)
-            
-            # Prepare the CSV file for download
-            output.seek(0)
-            return send_file(
-                io.BytesIO(output.getvalue().encode('utf-8')),
-                mimetype='text/csv',
-                as_attachment=True,
-                download_name='question_template.csv'
-            )
-            
-        elif format == 'excel':
-            # Create Excel file in memory
-            output = io.BytesIO()
-            df = pd.DataFrame(template_data)
-            df.to_excel(output, index=False, engine='openpyxl')
-            output.seek(0)
-            
-            return send_file(
-                output,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                as_attachment=True,
-                download_name='question_template.xlsx'
-            )
-        
-        else:
-            flash('Invalid format specified.', 'danger')
-            return redirect(url_for('admin.manage_questions'))
-            
-    except Exception as e:
-        logger.error(f"Error generating template: {str(e)}")
-        flash('Error generating template.', 'danger')
-        return redirect(url_for('admin.manage_questions'))
-
-@admin_bp.route('/upload_questions', methods=['POST'])
-@super_admin_required
-def upload_questions():
-    if 'question_file' not in request.files:
-        flash('No file uploaded.', 'danger')
-        return redirect(url_for('admin.manage_questions'))
-    
-    file = request.files['question_file']
-    if file.filename == '':
-        flash('No file selected.', 'danger')
-        return redirect(url_for('admin.manage_questions'))
-    
-    if not file.filename.endswith(('.csv', '.xlsx', '.xls')):
-        flash('Invalid file format. Please upload a CSV or Excel file.', 'danger')
-        return redirect(url_for('admin.manage_questions'))
-    
-    try:
-        # Read the file
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(file)
-        else:
-            df = pd.read_excel(file)
-        
-        # Skip first row if checkbox is checked
-        if request.form.get('skip_first_row') == 'on':
-            df = df.iloc[1:]
-        
-        # Get default subject ID
-        default_subject_id = request.form.get('subject_id_bulk')
-        
-        # Validate required columns
-        required_columns = ['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer', 'Explanation']
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            flash(f'Missing required columns: {", ".join(missing_columns)}', 'danger')
-            return redirect(url_for('admin.manage_questions'))
-        
-        conn = get_db_connection()
-        if conn is None:
-            flash('Database connection error.', 'danger')
-            return redirect(url_for('admin.manage_questions'))
-        
-        cursor = conn.cursor()
-        success_count = 0
-        error_count = 0
-        
-        try:
-            for index, row in df.iterrows():
-                try:
-                    # Process topics
-                    topics = row.get('Topics', '').split(',') if pd.notna(row.get('Topics')) else []
-                    topics_json = json.dumps([t.strip() for t in topics])
-                    
-                    # Get subject ID
-                    subject_id = row.get('Subject ID', default_subject_id)
-                    if not subject_id:
-                        raise ValueError('Subject ID is required')
-                    
-                    # Validate correct answer
-                    correct_answer = str(row['Correct Answer']).strip().upper()
-                    if correct_answer not in ['A', 'B', 'C', 'D']:
-                        raise ValueError('Correct Answer must be A, B, C, or D')
-                    
-                    # Handle boolean fields
-                    is_previous_year = str(row.get('Is Previous Year', '')).upper() == 'TRUE'
-                    previous_year = row.get('Previous Year') if is_previous_year and pd.notna(row.get('Previous Year')) else None
-                    
-                    # Insert question
-                    cursor.execute('''INSERT INTO questions 
-                        (question, option_a, option_b, option_c, option_d, correct_answer, 
-                         chapter, difficulty, subject_id, is_previous_year, previous_year, 
-                         topics, explanation, created_by) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                        (str(row['Question']), str(row['Option A']), str(row['Option B']),
-                         str(row['Option C']), str(row['Option D']), correct_answer,
-                         row.get('chapter', ''), row.get('Difficulty', 'medium'),
-                         subject_id, is_previous_year, previous_year,
-                         topics_json, str(row['Explanation']), session['user_id']))
-                    success_count += 1
-                    
-                except (ValueError, KeyError) as e:
-                    error_count += 1
-                    logger.error(f"Error processing row {index + 1}: {str(e)}")
-                    continue
-            
-            conn.commit()
-            flash(f'Successfully imported {success_count} questions. {error_count} questions failed.', 
-                  'success' if error_count == 0 else 'warning')
-            
-        except Error as err:
-            conn.rollback()
-            logger.error(f"Database error during bulk upload: {str(err)}")
-            flash('Error uploading questions.', 'danger')
-            
-        finally:
-            cursor.close()
-            conn.close()
-            
-    except Exception as e:
-        logger.error(f"Error processing file: {str(e)}")
-        flash('Error processing file.', 'danger')
-        
-    return redirect(url_for('admin.manage_questions'))
-
-@admin_bp.route('/manage_content')
-@superadmin_required
-def manage_content():
-    """Display the content management page"""
-    logger.info(f"Session data: {session}")
-    logger.info(f"User role: {session.get('role')}")
-    logger.info(f"User ID: {session.get('user_id')}")
-    
-    try:
-        conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Get all plans
-        cursor.execute('SELECT * FROM subscription_plans ORDER BY name')
-        plans = cursor.fetchall()
+        # Check if degree_type column exists
+        cursor.execute("SHOW COLUMNS FROM subjects LIKE 'degree_type'")
+        has_degree_type = cursor.fetchone() is not None
         
-        # Get all exams
-        cursor.execute('SELECT * FROM exams ORDER BY name')
-        exams = cursor.fetchall()
-        
-        # Get all subjects
-        cursor.execute('SELECT * FROM subjects ORDER BY name')
-        subjects = cursor.fetchall()
-        
-        return render_template('admin/manage_content.html',
-                             plans=plans,
-                             exams=exams,
-                             subjects=subjects)
-                             
-    except Exception as e:
-        logger.error(f"Error in manage_content: {str(e)}")
-        flash('Error loading content management page.', 'error')
-        return redirect(url_for('user.user_dashboard'))
-    finally:
-        if 'conn' in locals():
-            conn.close()
-
-@admin_bp.route('/add-plan', methods=['POST'])
-@superadmin_required
-def add_plan():
-    """Add a new plan"""
-    try:
-        name = request.form.get('name')
-        price = request.form.get('price')
-        duration_months = request.form.get('duration')
-        degree_access = request.form.get('degree_access', 'both')
-        includes_previous_years = request.form.get('includes_previous_years') == 'on'
-        is_institution = request.form.get('is_institution') == 'on'
-        student_range = request.form.get('student_range', 50)
-        custom_student_range = request.form.get('custom_student_range') == 'on'
+        subject_name = request.form.get('subject_name')
+        degree_type = request.form.get('degree_type') if has_degree_type else None
         description = request.form.get('description')
         
-        if not all([name, price, duration_months]):
-            flash('Name, price, and duration are required.', 'error')
+        if not subject_name:
+            flash('Subject name is required', 'error')
+            return redirect(url_for('admin.manage_content'))
+            
+        if has_degree_type and not degree_type:
+            flash('Degree type is required', 'error')
             return redirect(url_for('admin.manage_content'))
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        # Check if subject already exists
+        cursor.execute("SELECT id FROM subjects WHERE name = %s", (subject_name,))
+        if cursor.fetchone():
+            flash('A subject with this name already exists', 'error')
+            return redirect(url_for('admin.manage_content'))
         
-        cursor.execute('''
-            INSERT INTO subscription_plans 
-            (name, price, duration_months, degree_access, includes_previous_years, 
-             is_institution, student_range, custom_student_range, description)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (name, price, duration_months, degree_access, includes_previous_years, 
-              is_institution, student_range, custom_student_range, description))
-        
+        # Insert new subject
+        if has_degree_type:
+            cursor.execute("""
+                INSERT INTO subjects (name, degree_type, description)
+                VALUES (%s, %s, %s)
+            """, (subject_name, degree_type, description))
+        else:
+            cursor.execute("""
+                INSERT INTO subjects (name, description)
+                VALUES (%s, %s)
+            """, (subject_name, description))
+            
         conn.commit()
-        flash('Plan added successfully.', 'success')
+        flash('Subject added successfully', 'success')
+        return redirect(url_for('admin.manage_content'))
         
     except Exception as e:
-        logger.error(f"Error adding plan: {str(e)}")
-        flash('Error adding plan.', 'error')
+        logger.error(f"Error in add_subject: {str(e)}")
+        flash('An error occurred while adding the subject', 'error')
+        return redirect(url_for('admin.manage_content'))
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
 
-@admin_bp.route('/delete-plan/<int:plan_id>', methods=['POST'])
-@superadmin_required
-def delete_plan(plan_id):
-    """Delete a plan"""
+@admin_bp.route('/delete_subject/<int:subject_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_subject(subject_id):
     try:
         conn = get_db_connection()
+        if not conn:
+            flash('Database connection error.', 'error')
+            return redirect(url_for('admin.manage_content'))
+            
         cursor = conn.cursor()
         
-        # Check if plan is in use by users or institutions
-        cursor.execute('''
+        # Check if subject exists and has no associated questions
+        cursor.execute("""
+            SELECT s.id 
+            FROM subjects s 
+            LEFT JOIN questions q ON s.id = q.subject_id 
+            WHERE s.id = %s AND q.id IS NULL
+        """, (subject_id,))
+        
+        if not cursor.fetchone():
+            flash('Cannot delete subject. It may not exist or has associated questions.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        # Delete the subject
+        cursor.execute("DELETE FROM subjects WHERE id = %s", (subject_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        flash('Subject deleted successfully.', 'success')
+        return redirect(url_for('admin.manage_content'))
+
+    except Exception as e:
+        current_app.logger.error(f"Error in delete_subject: {str(e)}")
+        flash('An error occurred while deleting the subject.', 'error')
+        return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/add_plan', methods=['POST'])
+@login_required
+@admin_required
+def add_plan():
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
+    
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        name = request.form.get('plan_name')
+        price = request.form.get('price')
+        duration = request.form.get('duration')
+        degree_access = request.form.get('degree_access')
+        
+        if not all([name, price, duration, degree_access]):
+            flash('All fields are required', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        # Check if plan name already exists
+        cursor.execute("""
+            SELECT id FROM subscription_plans 
+            WHERE name = %s
+        """, (name,))
+        if cursor.fetchone():
+            flash('A plan with this name already exists', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        # Insert new plan
+        cursor.execute("""
+            INSERT INTO subscription_plans (name, price, duration_months, degree_access)
+            VALUES (%s, %s, %s, %s)
+        """, (name, price, duration, degree_access))
+        
+        conn.commit()
+        flash('Plan added successfully', 'success')
+        return redirect(url_for('admin.manage_content'))
+        
+    except Exception as e:
+        logger.error(f"Error in add_plan: {str(e)}")
+        flash('An error occurred while adding the plan', 'error')
+        return redirect(url_for('admin.manage_content'))
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@admin_bp.route('/delete_plan/<int:plan_id>', methods=['POST'])
+@login_required
+def delete_plan(plan_id):
+    if current_user.role != 'superadmin':
+        flash('Access denied.', 'danger')
+        return redirect(url_for('admin.manage_content'))
+
+    try:
+        conn = get_db_connection()
+        if not conn:
+            flash('Database connection error.', 'danger')
+            return redirect(url_for('admin.manage_content'))
+
+        cursor = conn.cursor()
+        
+        # Check if plan is in use
+        cursor.execute("""
             SELECT COUNT(*) FROM users 
             WHERE subscription_plan_id = %s 
-            OR EXISTS (
-                SELECT 1 FROM institutions 
+            OR subscription_plan_id IN (
+                SELECT id FROM institutions 
                 WHERE subscription_plan_id = %s
             )
-        ''', (plan_id, plan_id))
+        """, (plan_id, plan_id))
         
         if cursor.fetchone()[0] > 0:
-            flash('Cannot delete plan that is in use by users or institutions.', 'error')
+            flash('Cannot delete plan that is in use.', 'danger')
             return redirect(url_for('admin.manage_content'))
         
-        cursor.execute('DELETE FROM subscription_plans WHERE id = %s', (plan_id,))
+        cursor.execute("DELETE FROM subscription_plans WHERE id = %s", (plan_id,))
         conn.commit()
-        flash('Plan deleted successfully.', 'success')
-        
-    except Exception as e:
-        logger.error(f"Error deleting plan: {str(e)}")
-        flash('Error deleting plan.', 'error')
+        flash('Subscription plan deleted successfully.', 'success')
+        return redirect(url_for('admin.manage_content'))
+    except Error as err:
+        logger.error(f"Database error in delete_plan: {str(err)}")
+        flash('An error occurred while deleting the plan.', 'danger')
+        return redirect(url_for('admin.manage_content'))
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
 
-@admin_bp.route('/add-exam', methods=['POST'])
-@superadmin_required
-def add_exam():
-    """Add a new exam"""
-    try:
-        name = request.form.get('name')
-        degree_type = request.form.get('degree_type')
-        description = request.form.get('description')
-        
-        if not all([name, degree_type]):
-            flash('Exam name and degree type are required.', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO exams (name, degree_type, description)
-            VALUES (%s, %s, %s)
-        ''', (name, degree_type, description))
-        
-        conn.commit()
-        flash('Exam added successfully.', 'success')
-        
-    except Exception as e:
-        logger.error(f"Error adding exam: {str(e)}")
-        flash('Error adding exam.', 'error')
-    finally:
-        if 'conn' in locals():
-            conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
+@admin_bp.route('/edit_subject/<int:subject_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_subject(subject_id):
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error.', 'error')
+        return redirect(url_for('admin.manage_content'))
 
-@admin_bp.route('/delete-exam/<int:exam_id>', methods=['POST'])
-@superadmin_required
-def delete_exam(exam_id):
-    """Delete an exam"""
+    cursor = conn.cursor(dictionary=True)
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        if request.method == 'GET':
+            # Get subject details
+            cursor.execute('''
+                SELECT id, name, degree_type, description
+                FROM subjects
+                WHERE id = %s
+            ''', (subject_id,))
+            subject = cursor.fetchone()
+            
+            if not subject:
+                flash('Subject not found.', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            return render_template('admin/edit_subject.html', subject=subject)
         
-        # Check if exam is in use
-        cursor.execute('SELECT COUNT(*) FROM subjects WHERE exam_id = %s', (exam_id,))
-        if cursor.fetchone()[0] > 0:
-            flash('Cannot delete exam that has associated subjects.', 'error')
+        elif request.method == 'POST':
+            subject_name = request.form.get('subject_name')
+            degree_type = request.form.get('degree_type')
+            description = request.form.get('description')
+            
+            if not subject_name or not degree_type:
+                flash('Subject name and degree type are required.', 'error')
+                return redirect(url_for('admin.edit_subject', subject_id=subject_id))
+            
+            # Check if subject name already exists (excluding current subject)
+            cursor.execute('''
+                SELECT id FROM subjects 
+                WHERE name = %s AND id != %s
+            ''', (subject_name, subject_id))
+            if cursor.fetchone():
+                flash('A subject with this name already exists.', 'error')
+                return redirect(url_for('admin.edit_subject', subject_id=subject_id))
+            
+            # Update subject
+            cursor.execute('''
+                UPDATE subjects
+                SET name = %s, degree_type = %s, description = %s
+                WHERE id = %s
+            ''', (subject_name, degree_type, description, subject_id))
+            
+            conn.commit()
+            flash('Subject updated successfully.', 'success')
             return redirect(url_for('admin.manage_content'))
-        
-        cursor.execute('DELETE FROM exams WHERE id = %s', (exam_id,))
-        conn.commit()
-        flash('Exam deleted successfully.', 'success')
-        
-    except Exception as e:
-        flash('Error deleting exam.', 'error')
+    except Error as err:
+        logger.error(f"Error in edit_subject: {str(err)}")
+        flash('An error occurred while updating the subject.', 'error')
+        return redirect(url_for('admin.manage_content'))
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
 
-@admin_bp.route('/add-subject', methods=['POST'])
-@superadmin_required
-def add_subject():
-    """Add a new subject"""
-    try:
-        name = request.form.get('name')
-        degree_type = request.form.get('degree_type')
-        description = request.form.get('description')
-        
-        if not all([name, degree_type]):
-            flash('Subject name and degree type are required.', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO subjects (name, degree_type, description)
-            VALUES (%s, %s, %s)
-        ''', (name, degree_type, description))
-        
-        conn.commit()
-        flash('Subject added successfully.', 'success')
-        
-    except Exception as e:
-        logger.error(f"Error adding subject: {str(e)}")
-        flash('Error adding subject.', 'error')
-    finally:
-        if 'conn' in locals():
-            conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
+@admin_bp.route('/edit_plan/<int:plan_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_plan(plan_id):
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
 
-@admin_bp.route('/delete-subject/<int:subject_id>', methods=['POST'])
-@superadmin_required
-def delete_subject(subject_id):
-    """Delete a subject"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
         
-        # Check if subject is in use
-        cursor.execute('SELECT COUNT(*) FROM questions WHERE subject_id = %s', (subject_id,))
-        if cursor.fetchone()[0] > 0:
-            flash('Cannot delete subject that has associated questions.', 'error')
+        if request.method == 'POST':
+            name = request.form.get('plan_name')
+            price = request.form.get('price')
+            duration = request.form.get('duration')
+            degree_access = request.form.get('degree_access')
+            
+            if not all([name, price, duration, degree_access]):
+                flash('All fields are required', 'error')
+                return redirect(url_for('admin.edit_plan', plan_id=plan_id))
+            
+            # Check if plan name already exists (excluding current plan)
+            cursor.execute("""
+                SELECT id FROM subscription_plans 
+                WHERE name = %s AND id != %s
+            """, (name, plan_id))
+            existing_plan = cursor.fetchone()
+            
+            if existing_plan:
+                flash('A plan with this name already exists', 'error')
+                return redirect(url_for('admin.edit_plan', plan_id=plan_id))
+            
+            # Update the plan
+            cursor.execute("""
+                UPDATE subscription_plans 
+                SET name = %s, price = %s, duration_months = %s, degree_access = %s
+                WHERE id = %s
+            """, (name, price, duration, degree_access, plan_id))
+            
+            conn.commit()
+            flash('Plan updated successfully', 'success')
+            return redirect(url_for('admin.manage_content'))
+
+        # GET request - fetch plan details
+        cursor.execute("""
+            SELECT id, name, price, duration_months as duration, degree_access
+            FROM subscription_plans
+            WHERE id = %s
+        """, (plan_id,))
+        plan = cursor.fetchone()
+        
+        if not plan:
+            flash('Plan not found', 'error')
             return redirect(url_for('admin.manage_content'))
         
-        cursor.execute('DELETE FROM subjects WHERE id = %s', (subject_id,))
-        conn.commit()
-        flash('Subject deleted successfully.', 'success')
+        return render_template('admin/edit_plan.html', plan=plan)
         
     except Exception as e:
-        flash('Error deleting subject.', 'error')
+        logger.error(f"Error in edit_plan: {str(e)}")
+        flash('An error occurred while updating the plan', 'error')
+        return redirect(url_for('admin.manage_content'))
     finally:
-        if 'conn' in locals():
+        if 'cursor' in locals():
+            cursor.close()
+        if conn:
             conn.close()
-    
-    return redirect(url_for('admin.manage_content'))
+
+@admin_bp.route('/ping')
+def ping():
+    return 'pong', 200

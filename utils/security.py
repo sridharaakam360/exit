@@ -1,5 +1,6 @@
 # utils/security.py
 from flask import session, redirect, url_for, flash, abort
+from flask_login import current_user
 from functools import wraps
 import bleach
 import logging
@@ -17,7 +18,7 @@ def sanitize_input(data):
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session or 'user_id' not in session:
+        if not current_user.is_authenticated:
             flash('Please log in to access this page.', 'danger')
             logger.warning("Unauthorized access attempt to protected route")
             return redirect(url_for('auth.choose_login'))
@@ -27,10 +28,10 @@ def login_required(f):
 def super_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'role' not in session or session['role'] != 'superadmin':
+        if not current_user.is_authenticated or current_user.role != 'superadmin':
             flash('Only superadmins can access this page.', 'danger')
-            logger.info(f"Non-superadmin user {session.get('username', 'unknown')} attempted to access admin route")
-            if session.get('role') == 'instituteadmin':
+            logger.info(f"Non-superadmin user {current_user.username if current_user.is_authenticated else 'unknown'} attempted to access admin route")
+            if current_user.is_authenticated and current_user.role == 'instituteadmin':
                 return redirect(url_for('institution.institution_dashboard'))
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
@@ -39,18 +40,18 @@ def super_admin_required(f):
 def institute_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'role' not in session or 'user_id' not in session:
-            logger.warning("Missing basic session data")
+        if not current_user.is_authenticated:
+            logger.warning("User not authenticated")
             flash('Session expired or invalid. Please log in again.', 'danger')
             return redirect(url_for('auth.login'))
             
         # Superadmins can access everything
-        if session['role'] == 'superadmin':
+        if current_user.role == 'superadmin':
             return f(*args, **kwargs)
             
         # For institute admins, check institution_id
-        if session['role'] == 'instituteadmin':
-            if 'institution_id' not in session:
+        if current_user.role == 'instituteadmin':
+            if not hasattr(current_user, 'institution_id') or not current_user.institution_id:
                 logger.warning("Missing institution_id for institute admin")
                 flash('Session expired or invalid. Please log in again.', 'danger')
                 return redirect(url_for('auth.institution_login'))
@@ -58,7 +59,7 @@ def institute_admin_required(f):
             
         # For other roles, deny access
         flash('You do not have permission to access this page.', 'danger')
-        logger.warning(f"Unauthorized access attempt by user {session.get('username', 'unknown')} with role {session.get('role', 'unknown')}")
+        logger.warning(f"Unauthorized access attempt by user {current_user.username if current_user.is_authenticated else 'unknown'} with role {current_user.role if current_user.is_authenticated else 'unknown'}")
         return redirect(url_for('auth.login'))
             
     return decorated_function
@@ -66,10 +67,11 @@ def institute_admin_required(f):
 def quiz_access_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'role' not in session or 'user_id' not in session:
+        if not current_user.is_authenticated:
             flash('Please log in to access quizzes.', 'danger')
             return redirect(url_for('auth.login'))
-        role = session['role']
+            
+        role = current_user.role
         if role in ['superadmin', 'instituteadmin', 'student']:
             return f(*args, **kwargs)
         elif role == 'individual':
@@ -81,7 +83,7 @@ def quiz_access_required(f):
             cursor = conn.cursor(dictionary=True)
             try:
                 cursor.execute('''SELECT subscription_end, subscription_status 
-                                FROM users WHERE id = %s''', (session['user_id'],))
+                                FROM users WHERE id = %s''', (current_user.id,))
                 user = cursor.fetchone()
                 current_date = datetime.now().date()
                 if user and user['subscription_end'] and user['subscription_end'].date() >= current_date and user['subscription_status'] == 'active':

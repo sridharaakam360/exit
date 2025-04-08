@@ -62,34 +62,13 @@ CREATE TABLE institution_students (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Create exams table
-CREATE TABLE exams (
+-- Create subjects table
+CREATE TABLE subjects (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     degree_type ENUM('Dpharm', 'Bpharm') NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create plan_exam_access table
-CREATE TABLE plan_exam_access (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    plan_id INT NOT NULL,
-    exam_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (plan_id) REFERENCES subscription_plans(id),
-    FOREIGN KEY (exam_id) REFERENCES exams(id),
-    UNIQUE KEY unique_plan_exam (plan_id, exam_id)
-);
-
--- Create subjects table
-CREATE TABLE subjects (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    exam_id INT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (exam_id) REFERENCES exams(id)
 );
 
 -- Create questions table
@@ -118,7 +97,7 @@ CREATE TABLE questions (
 CREATE TABLE results (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    exam_id INT NOT NULL,
+    subject_id INT NOT NULL,
     score INT NOT NULL,
     total_questions INT NOT NULL,
     time_taken INT NOT NULL,
@@ -126,7 +105,7 @@ CREATE TABLE results (
     date_taken DATETIME NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (exam_id) REFERENCES exams(id)
+    FOREIGN KEY (subject_id) REFERENCES subjects(id)
 );
 
 -- Create question_reviews table
@@ -147,13 +126,11 @@ ALTER TABLE questions
 CHANGE COLUMN chapter chapter VARCHAR(100); 
 
 -- New query
-SELECT DISTINCT q.*, s.name AS subject_name, e.name as exam_name, s.exam_id
+SELECT DISTINCT q.*, s.name AS subject_name, s.degree_type
 FROM questions q
 JOIN subjects s ON q.subject_id = s.id
-JOIN exams e ON s.exam_id = e.id
-JOIN plan_exam_access pea ON e.id = pea.exam_id
-WHERE pea.plan_id = %s
-AND (e.degree_type = %s OR %s = 'both')
+JOIN subscription_plans sp ON sp.id = %s
+WHERE (s.degree_type = %s OR sp.degree_access = 'both')
 AND q.subject_id = %s
 AND q.chapter = %s
 AND JSON_CONTAINS(q.topics, %s) 

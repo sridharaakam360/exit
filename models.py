@@ -1,7 +1,8 @@
 import mysql.connector
 from mysql.connector import pooling
 import logging
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 from config import Config
 import os
 
@@ -70,23 +71,13 @@ def init_db():
             INDEX idx_last_active (last_active)
         )''')
 
-        # Exams table
-        cursor.execute('''CREATE TABLE IF NOT EXISTS exams (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name ENUM('MRB', 'ELITE', 'RRB', 'SBI', 'ISRO', 'Gpat', 'Drug Inspector', 'Junior Analyst', 'DRDO') NOT NULL,
-            degree_type ENUM('Dpharm', 'Bpharm') NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )''')
-
         # Subjects table
         cursor.execute('''CREATE TABLE IF NOT EXISTS subjects (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            exam_id INT NOT NULL,
-            name ENUM('Anatomy', 'Drug Store', 'Pharmacology(D)', 'Pharmaceutics(D)', 
-                    'Medicinal Chemistry', 'Pharmaceutics(B)', 'Pharmacology(B)') NOT NULL,
+            name VARCHAR(100) NOT NULL,
             degree_type ENUM('Dpharm', 'Bpharm') NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )''')
 
         # Questions table
@@ -98,110 +89,86 @@ def init_db():
             option_c VARCHAR(255) NOT NULL,
             option_d VARCHAR(255) NOT NULL,
             correct_answer CHAR(1) NOT NULL,
-            chapter VARCHAR(50) NOT NULL,
+            explanation TEXT,
             difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
-            subject_id INT,
+            chapter VARCHAR(100),
+            subject_id INT NOT NULL,
             is_previous_year BOOLEAN DEFAULT FALSE,
             previous_year INT,
             topics JSON,
-            explanation TEXT NOT NULL,
             created_by INT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL,
-            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-        )''')
-
-        # Subscription_plans table
-        cursor.execute('''CREATE TABLE IF NOT EXISTS subscription_plans (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name ENUM('Dpharm Package', 'Bpharm Package', 'Combo Package') NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            duration_months INT NOT NULL,
-            description TEXT,
-            degree_access ENUM('Dpharm', 'Bpharm', 'both') NOT NULL,
-            includes_previous_years BOOLEAN DEFAULT TRUE,
-            is_institution BOOLEAN DEFAULT FALSE,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )''')
-
-        # Plan_exam_access table
-        cursor.execute('''CREATE TABLE IF NOT EXISTS plan_exam_access (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            plan_id INT NOT NULL,
-            exam_id INT NOT NULL,
-            subject_id INT,
-            FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE,
-            FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
             FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_plan_exam_subject (plan_id, exam_id, subject_id)
+            FOREIGN KEY (created_by) REFERENCES users(id)
         )''')
 
         # Results table
         cursor.execute('''CREATE TABLE IF NOT EXISTS results (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
-            exam_id INT,
-            subject_id INT,
+            subject_id INT NOT NULL,
             score INT NOT NULL,
             total_questions INT NOT NULL,
             time_taken INT NOT NULL,
             answers JSON,
-            question_details JSON,
-            date_taken DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE SET NULL,
-            FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
+            date_taken DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (subject_id) REFERENCES subjects(id)
         )''')
 
-        # Question_reviews table
+        # Question reviews table
         cursor.execute('''CREATE TABLE IF NOT EXISTS question_reviews (
             id INT AUTO_INCREMENT PRIMARY KEY,
             question_id INT NOT NULL,
             user_id INT NOT NULL,
+            rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
             comment TEXT,
-            rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE KEY unique_user_question_review (user_id, question_id)
         )''')
 
-        # Subscription_history table
-        cursor.execute('''CREATE TABLE IF NOT EXISTS subscription_history (
+        # Subscription plans table
+        cursor.execute('''CREATE TABLE IF NOT EXISTS subscription_plans (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            subscription_plan_id INT NOT NULL,
-            start_date DATETIME NOT NULL,
-            end_date DATETIME NOT NULL,
-            amount_paid DECIMAL(10,2) NOT NULL,
-            payment_method VARCHAR(50) NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (subscription_plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+            name VARCHAR(100) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            duration_months INT NOT NULL,
+            description TEXT,
+            degree_access ENUM('Dpharm', 'Bpharm', 'both') NOT NULL,
+            includes_previous_years BOOLEAN DEFAULT TRUE,
+            is_institution BOOLEAN DEFAULT FALSE,
+            student_range INT NOT NULL DEFAULT 50,
+            custom_student_range BOOLEAN DEFAULT FALSE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )''')
 
         # Institutions table
         cursor.execute('''CREATE TABLE IF NOT EXISTS institutions (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            institution_code VARCHAR(50) UNIQUE NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL,
             admin_id INT,
             subscription_plan_id INT,
             subscription_start DATETIME,
             subscription_end DATETIME,
-            institution_code VARCHAR(20) UNIQUE NOT NULL,
+            student_range INT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL,
-            FOREIGN KEY (subscription_plan_id) REFERENCES subscription_plans(id) ON DELETE SET NULL
+            FOREIGN KEY (subscription_plan_id) REFERENCES subscription_plans(id),
+            FOREIGN KEY (admin_id) REFERENCES users(id)
         )''')
 
-        # Institution_students table
+        # Institution students table
         cursor.execute('''CREATE TABLE IF NOT EXISTS institution_students (
             id INT AUTO_INCREMENT PRIMARY KEY,
             institution_id INT NOT NULL,
             user_id INT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_student_institution (institution_id, user_id)
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )''')
 
         # Superadmin creation
@@ -217,7 +184,81 @@ def init_db():
         logger.info("Database initialized successfully")
     except mysql.connector.Error as err:
         logger.error(f"Database initialization error: {str(err)}")
+        raise
     finally:
-        if 'conn' in locals() and conn.is_connected():
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
+
+class User(UserMixin):
+    def __init__(self, id, username, email, password=None, password_hash=None, role='individual', status='active', degree='none', 
+                 user_type='individual', institution_id=None, subscription_plan_id=None,
+                 subscription_start=None, subscription_end=None, subscription_status='pending',
+                 last_active=None, created_at=None):
+        self.id = id
+        self.username = username
+        self.email = email
+        self.password = password or password_hash  # Handle both password and password_hash
+        self.role = role
+        self.status = status
+        self.degree = degree
+        self.user_type = user_type
+        self.institution_id = institution_id
+        self.subscription_plan_id = subscription_plan_id
+        self.subscription_start = subscription_start
+        self.subscription_end = subscription_end
+        self.subscription_status = subscription_status
+        self.last_active = last_active
+        self.created_at = created_at
+
+    @property
+    def is_active(self):
+        return self.status == 'active'
+
+    @property
+    def is_admin(self):
+        return self.role in ['superadmin', 'instituteadmin']
+
+    @staticmethod
+    def get_by_id(user_id):
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+            user_data = cursor.fetchone()
             cursor.close()
             conn.close()
+            
+            if user_data:
+                return User(**user_data)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by id: {str(e)}")
+            return None
+
+    @staticmethod
+    def get_by_username(username):
+        conn = get_db_connection()
+        if not conn:
+            return None
+        
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            user_data = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if user_data:
+                return User(**user_data)
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user by username: {str(e)}")
+            return None
+
+    def check_password(self, password):
+        return check_password_hash(self.password, password)

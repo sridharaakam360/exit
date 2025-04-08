@@ -810,7 +810,7 @@ function checkSession() {
         .then(data => {
             if (!data.authenticated) {
                 console.warn('Session expired, redirecting to login');
-                window.location.href = '/choose_login';
+                window.location.href = '/auth/choose_login';
             }
         })
         .catch(error => {
