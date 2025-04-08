@@ -46,6 +46,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Institution</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Active</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -76,6 +77,14 @@
                             {% else %}bg-red-100 text-red-800{% endif %}">
                             {{ user.status|title }}
                         </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if user.institution_name %}
+                        <div class="text-sm text-gray-900 dark:text-white">{{ user.institution_name }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ user.institution_code }}</div>
+                        {% else %}
+                        <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {{ user.last_active or 'Never' }}

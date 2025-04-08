@@ -85,20 +85,32 @@ def manage_questions():
             return redirect(url_for('admin.admin_dashboard'))
         form.subject_id.choices = [(s['id'], s['name']) for s in subjects]
 
-        if request.method == 'POST' and 'question' in request.form and form.validate_on_submit():
-            topics_json = json.dumps([t.strip() for t in form.topics.data.split(',')]) if form.topics.data else '[]'
-            cursor.execute('''INSERT INTO questions 
-                            (question, option_a, option_b, option_c, option_d, correct_answer, chapter, difficulty, subject_id, 
-                            is_previous_year, previous_year, topics, explanation, created_by) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
-                            (form.question.data, form.option_a.data, form.option_b.data,
-                             form.option_c.data, form.option_d.data, form.correct_answer.data.upper(),
-                             form.chapter.data, form.difficulty.data, form.subject_id.data,
-                             form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
-                             topics_json, form.explanation.data, session['user_id']))
-            conn.commit()
-            flash('Question added successfully.', 'success')
-            return redirect(url_for('admin.manage_questions'))
+        if request.method == 'POST':
+            if form.validate_on_submit():
+                try:
+                    topics_json = json.dumps([t.strip() for t in form.topics.data.split(',')]) if form.topics.data else '[]'
+                    cursor.execute('''INSERT INTO questions 
+                                    (question, option_a, option_b, option_c, option_d, correct_answer, chapter, difficulty, subject_id, 
+                                    is_previous_year, previous_year, topics, explanation, created_by) 
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
+                                    (form.question.data, form.option_a.data, form.option_b.data,
+                                     form.option_c.data, form.option_d.data, form.correct_answer.data,
+                                     form.chapter.data, form.difficulty.data, form.subject_id.data,
+                                     form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
+                                     topics_json, form.explanation.data, session['user_id']))
+                    conn.commit()
+                    flash('Question added successfully.', 'success')
+                    return redirect(url_for('admin.manage_questions'))
+                except Error as err:
+                    conn.rollback()
+                    logger.error(f"Database error while adding question: {str(err)}")
+                    flash('Error adding question. Please try again.', 'danger')
+            else:
+                # Log form errors for debugging
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        logger.error(f"Form error in {field}: {error}")
+                flash('Please correct the errors in the form.', 'danger')
 
         # Get filter parameters
         subject_filter = request.args.get('subject', '')
@@ -109,11 +121,10 @@ def manage_questions():
         per_page = 20
 
         # Build the base query
-        base_query = '''SELECT q.*, u.username, e.name AS exam_name, s.name AS subject_name 
+        base_query = '''SELECT q.*, u.username, s.name AS subject_name 
                        FROM questions q 
                        LEFT JOIN users u ON q.created_by = u.id 
                        JOIN subjects s ON q.subject_id = s.id 
-                       LEFT JOIN exams e ON s.exam_id = e.id 
                        WHERE 1=1'''
         query_params = []
 
@@ -183,7 +194,7 @@ def edit_question(question_id):
         form = QuestionForm()
         form.subject_id.choices = [(s['id'], s['name']) for s in subjects]
 
-        cursor.execute('''SELECT q.*, s.name AS subject_name, s.exam_id 
+        cursor.execute('''SELECT q.*, s.name AS subject_name
                          FROM questions q JOIN subjects s ON q.subject_id = s.id 
                          WHERE q.id = %s''', (question_id,))
         question = cursor.fetchone()
@@ -213,7 +224,7 @@ def edit_question(question_id):
                             is_previous_year = %s, previous_year = %s, topics = %s, explanation = %s 
                             WHERE id = %s''',
                             (form.question.data, form.option_a.data, form.option_b.data,
-                             form.option_c.data, form.option_d.data, form.correct_answer.data.upper(),
+                             form.option_c.data, form.option_d.data, form.correct_answer.data,
                              form.chapter.data, form.difficulty.data, form.subject_id.data,
                              form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
                              topics_json, form.explanation.data, question_id))
@@ -301,18 +312,44 @@ def manage_users():
         total_pages = (total_users + per_page - 1) // per_page
         
         # Get paginated users with institution info
-        cursor.execute(f'''
-            SELECT u.*, sp.name as plan_name,
-                   i.name as institution_name, i.institution_code,
-                   u.last_active
-            FROM users u 
-            LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id 
-            LEFT JOIN institution_students is_rel ON u.id = is_rel.user_id
-            LEFT JOIN institutions i ON is_rel.institution_id = i.id
-            WHERE {where_clause}
-            ORDER BY u.created_at DESC
-            LIMIT %s OFFSET %s
-        ''', (per_page, offset))
+        if user_type == 'instituteadmin':
+            cursor.execute(f'''
+                SELECT u.*, sp.name as plan_name,
+                       i.name as institution_name, i.institution_code,
+                       u.last_active
+                FROM users u 
+                LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id 
+                JOIN institutions i ON u.id = i.admin_id
+                WHERE {where_clause}
+                ORDER BY u.created_at DESC
+                LIMIT %s OFFSET %s
+            ''', (per_page, offset))
+        elif user_type == 'student':
+            cursor.execute(f'''
+                SELECT u.*, sp.name as plan_name,
+                       i.name as institution_name, i.institution_code,
+                       u.last_active
+                FROM users u 
+                LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id 
+                JOIN institution_students is_rel ON u.id = is_rel.user_id
+                JOIN institutions i ON is_rel.institution_id = i.id
+                WHERE {where_clause}
+                ORDER BY u.created_at DESC
+                LIMIT %s OFFSET %s
+            ''', (per_page, offset))
+        else:
+            cursor.execute(f'''
+                SELECT u.*, sp.name as plan_name,
+                       i.name as institution_name, i.institution_code,
+                       u.last_active
+                FROM users u 
+                LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id 
+                LEFT JOIN institution_students is_rel ON u.id = is_rel.user_id
+                LEFT JOIN institutions i ON is_rel.institution_id = i.id
+                WHERE {where_clause}
+                ORDER BY u.created_at DESC
+                LIMIT %s OFFSET %s
+            ''', (per_page, offset))
         users = cursor.fetchall()
         
         return render_template('admin/manage_users.html', 

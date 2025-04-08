@@ -44,19 +44,24 @@ class StudentRegisterForm(FlaskForm):
     submit = SubmitField('Register as Student')
 
 class QuestionForm(FlaskForm):
-    question = TextAreaField('Question', validators=[DataRequired(), Length(min=1, max=500)])
-    option_a = StringField('Option A', validators=[DataRequired(), Length(min=1, max=200)])
-    option_b = StringField('Option B', validators=[DataRequired(), Length(min=1, max=200)])
-    option_c = StringField('Option C', validators=[DataRequired(), Length(min=1, max=200)])
-    option_d = StringField('Option D', validators=[DataRequired(), Length(min=1, max=200)])
-    correct_answer = SelectField('Correct Answer', choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], validators=[DataRequired()])
-    chapter = StringField('chapter', validators=[DataRequired(), Length(min=1, max=100)])
-    difficulty = SelectField('Difficulty', choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], validators=[DataRequired()])
+    question = TextAreaField('Question', validators=[DataRequired()])
+    option_a = StringField('Option A', validators=[DataRequired()])
+    option_b = StringField('Option B', validators=[DataRequired()])
+    option_c = StringField('Option C', validators=[DataRequired()])
+    option_d = StringField('Option D', validators=[DataRequired()])
+    correct_answer = SelectField('Correct Answer', 
+                               choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], 
+                               validators=[DataRequired()])
+    chapter = StringField('Chapter', validators=[DataRequired()])
+    difficulty = SelectField('Difficulty', 
+                           choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], 
+                           validators=[DataRequired()])
     subject_id = SelectField('Subject', coerce=int, validators=[DataRequired()])
-    previous_year = IntegerField('Previous Year', validators=[])
-    topics = StringField('Topics', validators=[DataRequired(), Length(min=1, max=200)])
-    explanation = TextAreaField('Explanation', validators=[DataRequired(), Length(min=1, max=500)])
-    is_previous_year = BooleanField('Mark as Previous Year Question')
+    is_previous_year = BooleanField('Previous Year Question')
+    previous_year = StringField('Previous Year', validators=[Optional()])
+    topics = StringField('Topics (comma-separated)')
+    explanation = TextAreaField('Explanation', validators=[DataRequired()])
+    submit = SubmitField('Submit')
 
 class UserForm(FlaskForm):
     username = StringField('Username', validators=[
