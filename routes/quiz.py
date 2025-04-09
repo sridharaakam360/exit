@@ -577,6 +577,17 @@ def results(result_id):
                     'hard': sum(1 for q in questions if q['difficulty'] == 'hard')
                 }
             }
+            
+            # Calculate width percentages for progress bars
+            total = len(questions)
+            easy_count = statistics['difficulty_distribution']['easy']
+            medium_count = statistics['difficulty_distribution']['medium']
+            hard_count = statistics['difficulty_distribution']['hard']
+            
+            easy_width = int((easy_count / total * 100) if total > 0 else 0)
+            medium_width = int((medium_count / total * 100) if total > 0 else 0)
+            hard_width = int((hard_count / total * 100) if total > 0 else 0)
+            
             logger.info(f"Calculated statistics: {statistics}")
 
             # Group questions by chapter and topic for subject-wise quizzes
@@ -612,7 +623,14 @@ def results(result_id):
                                  questions=processed_questions,
                                  statistics=statistics,
                                  subject_name=result['subject_name'],
-                                 quiz_type='subject_wise')
+                                 quiz_type='subject_wise',
+                                 easy_count=easy_count,
+                                 medium_count=medium_count,
+                                 hard_count=hard_count,
+                                 easy_width=easy_width,
+                                 medium_width=medium_width,
+                                 hard_width=hard_width,
+                                 total_questions=total)
 
     except Exception as e:
         logger.error(f"Error displaying results: {str(e)}", exc_info=True)
@@ -738,10 +756,32 @@ def test_history():
         # Process each result to calculate statistics
         for result in results:
             answers = json.loads(result['answers']) if result['answers'] else {}
-            result['total_questions'] = len(answers)
-            result['correct_answers'] = sum(1 for ans in answers.values() if ans)
-            result['score_percentage'] = (result['correct_answers'] / result['total_questions'] * 100) if result['total_questions'] > 0 else 0
-            result['time_taken_formatted'] = format_time(result['time_taken'])
+            
+            # Get question IDs from the answers dictionary
+            question_ids = list(answers.keys())
+            
+            # Get full question details from database
+            if question_ids:
+                cursor.execute('''
+                    SELECT q.*
+                    FROM questions q
+                    WHERE q.id IN ({})
+                '''.format(','.join(['%s'] * len(question_ids))), question_ids)
+                
+                questions = cursor.fetchall()
+                
+                # Calculate correct answers by comparing with correct answers
+                correct_answers = 0
+                for question in questions:
+                    question_id = str(question['id'])
+                    user_answer = answers.get(question_id)
+                    if user_answer == question['correct_answer']:
+                        correct_answers += 1
+                
+                result['total_questions'] = len(questions)
+                result['correct_answers'] = correct_answers
+                result['score_percentage'] = (correct_answers / len(questions) * 100) if len(questions) > 0 else 0
+                result['time_taken_formatted'] = format_time(result['time_taken'])
         
         return render_template('quiz/test_history.html', results=results)
         

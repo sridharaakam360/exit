@@ -1,169 +1,286 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">Quiz Results</h3>
+<div class="container my-5">
+    <!-- Result Summary Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white py-3">
+            <h4 class="mb-0">Quiz Results: {{ subject_name }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Score Overview -->
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <div class="text-center mb-3">
+                        <div style="width: 150px; height: 150px; margin: 0 auto; position: relative;">
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                                <h1 class="mb-0 fw-bold">{{ statistics.score }}%</h1>
+                                <p class="text-muted mb-0">Score</p>
+                            </div>
+                            <svg width="150" height="150" viewBox="0 0 150 150">
+                                <circle cx="75" cy="75" r="60" fill="none" stroke="#e6e6e6" stroke-width="15"/>
+                                <circle cx="75" cy="75" r="60" fill="none" stroke="{{ '#28a745' if statistics.score >= 60 else '#dc3545' }}" 
+                                    stroke-width="15" stroke-dasharray="376.8" stroke-dashoffset="{{ 376.8 - (statistics.score * 376.8 / 100) }}" 
+                                    transform="rotate(-90 75 75)"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <p class="fw-bold mb-0">{{ statistics.correct_answers }}/{{ statistics.total_questions }}</p>
+                            <p class="text-muted small">Correct Answers</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="fw-bold mb-0">{{ statistics.time_taken }}</p>
+                            <p class="text-muted small">Time Taken</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <!-- Quiz Summary -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h5 class="card-title">Quiz Summary</h5>
-                                    <p class="mb-1"><strong>Subject:</strong> {{ subject_name }}</p>
-                                    <p class="mb-1"><strong>Score:</strong> {{ result.score }}%</p>
-                                    <p class="mb-1"><strong>Time Taken:</strong> {{ statistics.time_taken }}</p>
-                                    <p class="mb-1"><strong>Total Questions:</strong> {{ statistics.total_questions }}</p>
-                                    <p class="mb-1"><strong>Correct Answers:</strong> {{ statistics.correct_answers }}</p>
-                                </div>
-                            </div>
+                
+                <!-- Difficulty Distribution -->
+                <div class="col-md-6">
+                    <h5 class="mb-3">Difficulty Breakdown</h5>
+                    
+                    <!-- Easy Questions -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-success me-2"></i> Easy</span>
+                            <span>{{ easy_count }} questions</span>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h5 class="card-title">Difficulty Distribution</h5>
-                                    <div class="progress mb-2">
-                                        <div class="progress-bar bg-success" style="width: {{ (statistics.difficulty_distribution.easy / statistics.total_questions * 100) }}%">
-                                            Easy: {{ statistics.difficulty_distribution.easy }}
-                                        </div>
-                                        <div class="progress-bar bg-warning" style="width: {{ (statistics.difficulty_distribution.medium / statistics.total_questions * 100) }}%">
-                                            Medium: {{ statistics.difficulty_distribution.medium }}
-                                        </div>
-                                        <div class="progress-bar bg-danger" style="width: {{ (statistics.difficulty_distribution.hard / statistics.total_questions * 100) }}%">
-                                            Hard: {{ statistics.difficulty_distribution.hard }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                style="width: {{ easy_width }}%" 
+                                aria-valuenow="{{ easy_width }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"></div>
                         </div>
                     </div>
-
-                    <!-- Questions Review -->
-                    <div class="questions-review">
-                        <h4 class="mb-3">Questions Review</h4>
-                        {% for question in questions %}
-                        <div class="card mb-3 {% if question.is_correct %}border-success{% else %}border-danger{% endif %}">
-                            <div class="card-header {% if question.is_correct %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
-                                Question {{ loop.index }}
-                            </div>
-                            <div class="card-body">
-                                <h5 class="card-title">{{ question.question }}</h5>
-                                <div class="options mt-3">
-                                    {% for option, text in question.options.items() %}
-                                    <div class="option-item mb-2 p-2 rounded {% if option == question.correct_answer %}bg-success text-white{% elif option == question.user_answer %}bg-danger text-white{% else %}bg-light{% endif %}">
-                                        <strong>{{ option }}:</strong> {{ text }}
-                                        {% if option == question.correct_answer %}
-                                        <i class="fas fa-check-circle float-end"></i>
-                                        {% elif option == question.user_answer %}
-                                        <i class="fas fa-times-circle float-end"></i>
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% if not question.user_answer %}
-                                <div class="alert alert-warning mt-2">
-                                    <i class="fas fa-exclamation-circle"></i> This question was not answered
-                                </div>
-                                {% endif %}
-                                {% if question.explanation %}
-                                <div class="explanation mt-3">
-                                    <h6>Explanation:</h6>
-                                    <p class="text-muted">{{ question.explanation }}</p>
-                                </div>
-                                {% endif %}
-                            </div>
+                    
+                    <!-- Medium Questions -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-warning me-2"></i> Medium</span>
+                            <span>{{ medium_count }} questions</span>
                         </div>
-                        {% endfor %}
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                style="width: {{ medium_width }}%" 
+                                aria-valuenow="{{ medium_width }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"></div>
+                        </div>
                     </div>
-
-                    <!-- Chapter and Topic Statistics -->
-                    {% if statistics.chapter_stats or statistics.topic_stats %}
-                    <div class="row mt-4">
-                        {% if statistics.chapter_stats %}
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Chapter-wise Performance</h5>
-                                </div>
-                                <div class="card-body">
-                                    {% for chapter, stats in statistics.chapter_stats.items() %}
-                                    <div class="mb-3">
-                                        <h6>{{ chapter }}</h6>
-                                        <div class="progress">
-                                            <div class="progress-bar" role="progressbar" 
-                                                 style="width: {{ (stats.correct / stats.total * 100) }}%">
-                                                {{ stats.correct }}/{{ stats.total }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
+                    
+                    <!-- Hard Questions -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="fas fa-circle text-danger me-2"></i> Hard</span>
+                            <span>{{ hard_count }} questions</span>
                         </div>
-                        {% endif %}
-                        
-                        {% if statistics.topic_stats %}
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Topic-wise Performance</h5>
-                                </div>
-                                <div class="card-body">
-                                    {% for topic, stats in statistics.topic_stats.items() %}
-                                    <div class="mb-3">
-                                        <h6>{{ topic }}</h6>
-                                        <div class="progress">
-                                            <div class="progress-bar" role="progressbar" 
-                                                 style="width: {{ (stats.correct / stats.total * 100) }}%">
-                                                {{ stats.correct }}/{{ stats.total }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                style="width: {{ hard_width }}%" 
+                                aria-valuenow="{{ hard_width }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"></div>
                         </div>
-                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Color Legend -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap justify-content-center">
+                <div class="me-4 mb-2">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #28a745; margin-right: 5px;"></span>
+                    <span class="small">Correct Answer</span>
+                </div>
+                <div class="me-4 mb-2">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #dc3545; margin-right: 5px;"></span>
+                    <span class="small">Incorrect Answer</span>
+                </div>
+                <div class="me-4 mb-2">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #6c757d; border: 1px solid #6c757d; margin-right: 5px;"></span>
+                    <span class="small">Unanswered</span>
+                </div>
+                <div class="me-4 mb-2">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #f8f9fa; border: 1px solid #dee2e6; margin-right: 5px;"></span>
+                    <span class="small">Not Selected</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions Review -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0">Question Review</h5>
+            <button class="btn btn-sm btn-outline-primary" id="toggle-all-explanations">Show All Explanations</button>
+        </div>
+        <div class="card-body">
+            <div class="accordion" id="questionAccordion">
+                {% for question in questions %}
+                <div class="accordion-item mb-3 border">
+                    <!-- Question Header -->
+                    <h2 class="accordion-header" id="heading{{ loop.index }}">
+                        <button class="accordion-button {{ 'collapsed' if loop.index > 1 else '' }}" type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#collapse{{ loop.index }}" 
+                            aria-expanded="{{ 'true' if loop.index == 1 else 'false' }}" 
+                            aria-controls="collapse{{ loop.index }}"
+                            style="{% if question.is_correct %}border-left: 4px solid #28a745;{% elif question.is_answered %}border-left: 4px solid #dc3545;{% else %}border-left: 4px solid #6c757d;{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center w-100">
+                                <div>
+                                    <span class="badge {{ 'bg-success' if question.is_correct else 'bg-danger' if question.is_answered else 'bg-secondary' }} me-2">
+                                        {{ 'Correct' if question.is_correct else 'Incorrect' if question.is_answered else 'Unanswered' }}
+                                    </span>
+                                    Question {{ loop.index }}
+                                </div>
+                                <div class="ms-auto text-muted small">
+                                    {{ question.difficulty }} | {{ question.type }}
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    
+                    <!-- Question Content -->
+                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse {{ 'show' if loop.index == 1 else '' }}" 
+                        aria-labelledby="heading{{ loop.index }}" 
+                        data-bs-parent="#questionAccordion">
+                        <div class="accordion-body">
+                            <p class="mb-4">{{ question.question }}</p>
+                            
+                            <!-- Options -->
+                            <div class="mb-4">
+                                <!-- Option A -->
+                                <div class="mb-2 p-2 rounded" 
+                                    style="{% if question.correct_answer == 'a' %}background-color: rgba(40, 167, 69, 0.15); border-left: 4px solid #28a745;
+                                    {% elif question.selected_answer == 'a' %}background-color: rgba(220, 53, 69, 0.15); border-left: 4px solid #dc3545;
+                                    {% else %}background-color: rgba(248, 249, 250, 0.5); border-left: 4px solid #dee2e6;{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3" style="min-width: 24px;">A</div>
+                                        <div>{{ question.option_a }}</div>
+                                        {% if question.correct_answer == 'a' %}
+                                        <div class="ms-auto"><i class="fas fa-check text-success"></i></div>
+                                        {% elif question.selected_answer == 'a' %}
+                                        <div class="ms-auto"><i class="fas fa-times text-danger"></i></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Option B -->
+                                <div class="mb-2 p-2 rounded" 
+                                    style="{% if question.correct_answer == 'b' %}background-color: rgba(40, 167, 69, 0.15); border-left: 4px solid #28a745;
+                                    {% elif question.selected_answer == 'b' %}background-color: rgba(220, 53, 69, 0.15); border-left: 4px solid #dc3545;
+                                    {% else %}background-color: rgba(248, 249, 250, 0.5); border-left: 4px solid #dee2e6;{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3" style="min-width: 24px;">B</div>
+                                        <div>{{ question.option_b }}</div>
+                                        {% if question.correct_answer == 'b' %}
+                                        <div class="ms-auto"><i class="fas fa-check text-success"></i></div>
+                                        {% elif question.selected_answer == 'b' %}
+                                        <div class="ms-auto"><i class="fas fa-times text-danger"></i></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Option C -->
+                                <div class="mb-2 p-2 rounded" 
+                                    style="{% if question.correct_answer == 'c' %}background-color: rgba(40, 167, 69, 0.15); border-left: 4px solid #28a745;
+                                    {% elif question.selected_answer == 'c' %}background-color: rgba(220, 53, 69, 0.15); border-left: 4px solid #dc3545;
+                                    {% else %}background-color: rgba(248, 249, 250, 0.5); border-left: 4px solid #dee2e6;{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3" style="min-width: 24px;">C</div>
+                                        <div>{{ question.option_c }}</div>
+                                        {% if question.correct_answer == 'c' %}
+                                        <div class="ms-auto"><i class="fas fa-check text-success"></i></div>
+                                        {% elif question.selected_answer == 'c' %}
+                                        <div class="ms-auto"><i class="fas fa-times text-danger"></i></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Option D -->
+                                <div class="mb-2 p-2 rounded" 
+                                    style="{% if question.correct_answer == 'd' %}background-color: rgba(40, 167, 69, 0.15); border-left: 4px solid #28a745;
+                                    {% elif question.selected_answer == 'd' %}background-color: rgba(220, 53, 69, 0.15); border-left: 4px solid #dc3545;
+                                    {% else %}background-color: rgba(248, 249, 250, 0.5); border-left: 4px solid #dee2e6;{% endif %}">
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3" style="min-width: 24px;">D</div>
+                                        <div>{{ question.option_d }}</div>
+                                        {% if question.correct_answer == 'd' %}
+                                        <div class="ms-auto"><i class="fas fa-check text-success"></i></div>
+                                        {% elif question.selected_answer == 'd' %}
+                                        <div class="ms-auto"><i class="fas fa-times text-danger"></i></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Explanation -->
+                            {% if question.explanation %}
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-secondary toggle-explanation">Show Explanation</button>
+                                <div class="explanation mt-2" style="display: none;">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary"><i class="fas fa-info-circle me-2"></i>Explanation</h6>
+                                            <p class="card-text">{{ question.explanation }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between mb-4">
+        <a href="{{ url_for('quiz.quiz') }}" class="btn btn-primary"><i class="fas fa-redo me-2"></i>Take Another Quiz</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary"><i class="fas fa-home me-2"></i>Back to Dashboard</a>
+    </div>
 </div>
 
-<style>
-.option-item {
-    transition: all 0.3s ease;
-}
-.option-item:hover {
-    transform: translateX(5px);
-}
-.progress {
-    height: 25px;
-}
-.progress-bar {
-    font-size: 14px;
-    line-height: 25px;
-}
-.card {
-    border-radius: 10px;
-    overflow: hidden;
-}
-.card-header {
-    border-radius: 0 !important;
-}
-.questions-review .card {
-    transition: all 0.3s ease;
-}
-.questions-review .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-</style>
+<script>
+    // Toggle individual explanation
+    document.querySelectorAll('.toggle-explanation').forEach(button => {
+        button.addEventListener('click', function() {
+            const explanationDiv = this.nextElementSibling;
+            if (explanationDiv.style.display === 'none') {
+                explanationDiv.style.display = 'block';
+                this.textContent = 'Hide Explanation';
+            } else {
+                explanationDiv.style.display = 'none';
+                this.textContent = 'Show Explanation';
+            }
+        });
+    });
+    
+    // Toggle all explanations
+    document.getElementById('toggle-all-explanations').addEventListener('click', function() {
+        const allExplanations = document.querySelectorAll('.explanation');
+        const allButtons = document.querySelectorAll('.toggle-explanation');
+        
+        // Check if any explanations are hidden
+        const anyHidden = Array.from(allExplanations).some(exp => exp.style.display === 'none');
+        
+        allExplanations.forEach(exp => {
+            exp.style.display = anyHidden ? 'block' : 'none';
+        });
+        
+        allButtons.forEach(btn => {
+            btn.textContent = anyHidden ? 'Hide Explanation' : 'Show Explanation';
+        });
+        
+        this.textContent = anyHidden ? 'Hide All Explanations' : 'Show All Explanations';
+    });
+</script>
 {% endblock %} 

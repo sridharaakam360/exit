@@ -1,81 +1,62 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="mb-0">Test History</h3>
+<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 15px;">
+    <div style="border: 1px solid #dee2e6; border-radius: 10px; overflow: hidden; background-color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <div style="background-color: #4299e1; color: white; padding: 15px 20px;">
+            <h3 style="margin: 0; font-size: 1.5rem;">Test History</h3>
+        </div>
+        <div style="padding: 20px;">
+            {% if results %}
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 600px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e2e8f0; background-color: #f8fafc;">
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Date</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Subject</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Score</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Questions</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Time Taken</th>
+                                <th style="padding: 12px 15px; text-align: left; font-weight: 600;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr style="border-bottom: 1px solid #e2e8f0; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f7fafc'" onmouseout="this.style.backgroundColor='transparent'">
+                                <td style="padding: 12px 15px;">{{ result.date_taken.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td style="padding: 12px 15px;">{{ result.subject_name or 'General Quiz' }}</td>
+                                <td style="padding: 12px 15px;">
+                                    <div style="background-color: #e9ecef; height: 20px; border-radius: 4px; overflow: hidden; min-width: 100px;">
+                                        <div style="background-color: {% if result.score_percentage >= 70 %}#48bb78{% elif result.score_percentage >= 40 %}#ecc94b{% else %}#f56565{% endif %}; height: 100%; width: {{ result.score_percentage }}%; color: white; text-align: center; font-size: 12px; line-height: 20px; transition: width 0.6s ease;">
+                                            {{ "%.1f"|format(result.score_percentage) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="padding: 12px 15px;">{{ result.correct_answers }}/{{ result.total_questions }}</td>
+                                <td style="padding: 12px 15px;">{{ result.time_taken_formatted }}</td>
+                                <td style="padding: 12px 15px;">
+                                    <a href="{{ url_for('quiz.results', result_id=result.id) }}" 
+                                       style="display: inline-block; padding: 6px 12px; background-color: #4299e1; color: white; border-radius: 4px; text-decoration: none; font-size: 0.85rem;">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    {% if results %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Subject</th>
-                                        <th>Score</th>
-                                        <th>Questions</th>
-                                        <th>Time Taken</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for result in results %}
-                                    <tr>
-                                        <td>{{ result.date_taken.strftime('%Y-%m-%d %H:%M') }}</td>
-                                        <td>{{ result.subject_name or 'General Quiz' }}</td>
-                                        <td>
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar {% if result.score_percentage >= 70 %}bg-success{% elif result.score_percentage >= 40 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                                     role="progressbar" 
-                                                     style="width: {{ result.score_percentage }}%"
-                                                     aria-valuenow="{{ result.score_percentage }}" 
-                                                     aria-valuemin="0" 
-                                                     aria-valuemax="100">
-                                                    {{ "%.1f"|format(result.score_percentage) }}%
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{{ result.correct_answers }}/{{ result.total_questions }}</td>
-                                        <td>{{ result.time_taken_formatted }}</td>
-                                        <td>
-                                            <a href="{{ url_for('quiz.results', result_id=result.id) }}" 
-                                               class="btn btn-sm btn-info">
-                                                <i class="fas fa-eye"></i> View Details
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> No test history found. Take a quiz to see your results here.
-                        </div>
-                    {% endif %}
+            {% else %}
+                <div style="padding: 15px; background-color: #ebf8ff; color: #2b6cb0; border-radius: 4px; margin-bottom: 20px;">
+                    <i class="fas fa-info-circle"></i> No test history found. Take a quiz to see your results here.
                 </div>
-            </div>
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="{{ url_for('quiz.quiz') }}" 
+                       style="display: inline-block; padding: 10px 20px; background-color: #4299e1; color: white; border-radius: 4px; text-decoration: none; font-weight: 500;">
+                        <i class="fas fa-play-circle"></i> Take a Quiz
+                    </a>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>
-
-<style>
-.progress {
-    min-width: 100px;
-    background-color: #e9ecef;
-}
-.progress-bar {
-    transition: width 0.6s ease;
-}
-.table th {
-    background-color: #f8f9fa;
-}
-.table-hover tbody tr:hover {
-    background-color: rgba(0,0,0,.075);
-}
-</style>
 {% endblock %} 

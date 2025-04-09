@@ -1,88 +1,132 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Question {{ current_question }} of {{ total_questions }}</h5>
-                    <div id="timer" class="text-white">Time: 00:00</div>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ question.question }}</h5>
+<div style="width: 100%; max-width: 1200px; margin: 20px auto; padding: 0 15px;">
+    <div style="width: 100%; max-width: 800px; margin: 0 auto;">
+        <div style="border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; background-color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; background-color: #4299e1; color: white; padding: 12px 16px;">
+                <h5 style="margin: 0; font-size: 1.1rem;">Question {{ current_question }} of {{ total_questions }}</h5>
+                <div id="timer" style="font-weight: bold;">Time: 00:00</div>
+            </div>
+            <div style="padding: 20px;">
+                <h5 style="font-size: 1.2rem; margin-bottom: 20px;">{{ question.question }}</h5>
+                
+                <form method="POST" action="{{ url_for('quiz.take_quiz') }}" id="quiz-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="time_taken" id="time-taken" value="0">
                     
-                    <form method="POST" action="{{ url_for('quiz.take_quiz') }}" id="quiz-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="time_taken" id="time-taken" value="0">
-                        
-                        <div class="form-group">
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="radio" name="answer" id="option-a" value="a" {% if answer == 'a' %}checked{% endif %}>
-                                <label class="form-check-label" for="option-a">
-                                    A. {{ question.option_a }}
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="radio" name="answer" id="option-b" value="b" {% if answer == 'b' %}checked{% endif %}>
-                                <label class="form-check-label" for="option-b">
-                                    B. {{ question.option_b }}
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="radio" name="answer" id="option-c" value="c" {% if answer == 'c' %}checked{% endif %}>
-                                <label class="form-check-label" for="option-c">
-                                    C. {{ question.option_c }}
-                                </label>
-                            </div>
-                            <div class="form-check mb-3">
-                                <input class="form-check-input" type="radio" name="answer" id="option-d" value="d" {% if answer == 'd' %}checked{% endif %}>
-                                <label class="form-check-label" for="option-d">
-                                    D. {{ question.option_d }}
-                                </label>
-                            </div>
+                    <div style="margin-bottom: 20px;">
+                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;" onclick="selectOption('option-a')">
+                            <input type="radio" name="answer" id="option-a" value="a" {% if answer == 'a' %}checked{% endif %} style="margin-right: 10px;">
+                            <label for="option-a" style="cursor: pointer;">
+                                A. {{ question.option_a }}
+                            </label>
                         </div>
-                        
-                        <div class="text-center mt-4">
-                            <div class="d-flex justify-content-between">
-                                {% if current_question > 1 %}
-                                <a href="{{ url_for('quiz.take_quiz') }}" class="btn btn-secondary" 
-                                   onclick="goToPrevious(event)">
-                                    <i class="fas fa-arrow-left"></i> Previous
-                                </a>
-                                {% else %}
-                                <button type="submit" name="cancel_quiz" value="true" class="btn btn-danger">
-                                    <i class="fas fa-times"></i> Cancel Quiz
-                                </button>
-                                {% endif %}
-                                
-                                {% if current_question < total_questions %}
-                                <button type="submit" name="next_question" value="true" class="btn btn-primary">
-                                    Next <i class="fas fa-arrow-right"></i>
-                                </button>
-                                {% else %}
-                                <button type="submit" name="submit_quiz" value="true" class="btn btn-success">
-                                    <i class="fas fa-check"></i> Submit Quiz
-                                </button>
-                                {% endif %}
-                            </div>
+                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;" onclick="selectOption('option-b')">
+                            <input type="radio" name="answer" id="option-b" value="b" {% if answer == 'b' %}checked{% endif %} style="margin-right: 10px;">
+                            <label for="option-b" style="cursor: pointer;">
+                                B. {{ question.option_b }}
+                            </label>
                         </div>
-                    </form>
-                </div>
-                <div class="card-footer">
-                    <div class="progress">
-                        <div class="progress-bar" role="progressbar" style="width: {{ (current_question / total_questions) * 100 }}%;" 
-                             aria-valuenow="{{ current_question }}" aria-valuemin="0" aria-valuemax="{{ total_questions }}">
-                            {{ current_question }} / {{ total_questions }}
+                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;" onclick="selectOption('option-c')">
+                            <input type="radio" name="answer" id="option-c" value="c" {% if answer == 'c' %}checked{% endif %} style="margin-right: 10px;">
+                            <label for="option-c" style="cursor: pointer;">
+                                C. {{ question.option_c }}
+                            </label>
+                        </div>
+                        <div style="margin-bottom: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; cursor: pointer;" onclick="selectOption('option-d')">
+                            <input type="radio" name="answer" id="option-d" value="d" {% if answer == 'd' %}checked{% endif %} style="margin-right: 10px;">
+                            <label for="option-d" style="cursor: pointer;">
+                                D. {{ question.option_d }}
+                            </label>
                         </div>
                     </div>
+                    
+                    <!-- Navigation Buttons -->
+                    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                        <div>
+                            {% if current_question > 1 %}
+                            <a href="#" onclick="goToPrevious(event)" 
+                               style="padding: 8px 16px; background-color: #718096; color: white; border-radius: 4px; text-decoration: none; border: none; cursor: pointer;">
+                                <i class="fas fa-arrow-left"></i> Previous
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <div>
+                            {% if current_question < total_questions %}
+                            <button type="submit" name="next_question" value="true" 
+                                    style="padding: 8px 16px; background-color: #4299e1; color: white; border-radius: 4px; border: none; cursor: pointer;">
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" onclick="confirmSubmit()" 
+                                    style="padding: 8px 16px; background-color: #48bb78; color: white; border-radius: 4px; border: none; cursor: pointer;">
+                                <i class="fas fa-check"></i> Submit Quiz
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom action buttons (always visible) -->
+                    <div style="display: flex; justify-content: space-between; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                        <button type="button" onclick="confirmCancel()" 
+                                style="padding: 8px 16px; background-color: #f56565; color: white; border-radius: 4px; border: none; cursor: pointer;">
+                            <i class="fas fa-times"></i> Cancel Quiz
+                        </button>
+                        
+                        <button type="button" onclick="confirmSubmit()" 
+                                style="padding: 8px 16px; background-color: #48bb78; color: white; border-radius: 4px; border: none; cursor: pointer;">
+                            <i class="fas fa-check"></i> Submit Quiz
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div style="padding: 12px 16px; background-color: #f7fafc; border-top: 1px solid #e2e8f0;">
+                <div style="background-color: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div style="background-color: #4299e1; height: 100%; width: {{ (current_question / total_questions) * 100 }}%;">
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 5px; font-size: 0.9rem; color: #4a5568;">
+                    {{ current_question }} / {{ total_questions }}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-{% block scripts %}
+<!-- Submit Confirmation Modal -->
+<div id="submitModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div style="background-color: white; margin: 15% auto; padding: 20px; border-radius: 6px; width: 90%; max-width: 500px;">
+        <h3 style="margin-top: 0;">Submit Quiz</h3>
+        <p>Are you sure you want to submit your quiz? You won't be able to change your answers after submission.</p>
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+            <button onclick="closeSubmitModal()" style="margin-right: 10px; padding: 8px 16px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
+                Cancel
+            </button>
+            <button onclick="submitQuiz()" style="padding: 8px 16px; background-color: #48bb78; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Submit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div id="cancelModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div style="background-color: white; margin: 15% auto; padding: 20px; border-radius: 6px; width: 90%; max-width: 500px;">
+        <h3 style="margin-top: 0;">Cancel Quiz</h3>
+        <p>Are you sure you want to cancel your quiz? All your progress will be lost.</p>
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+            <button onclick="closeCancelModal()" style="margin-right: 10px; padding: 8px 16px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
+                No, Continue Quiz
+            </button>
+            <button onclick="cancelQuiz()" style="padding: 8px 16px; background-color: #f56565; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Yes, Cancel Quiz
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         let startTime = new Date().getTime();
@@ -115,6 +159,45 @@
         form.appendChild(prevInput);
         form.submit();
     }
+    
+    function selectOption(id) {
+        document.getElementById(id).checked = true;
+    }
+    
+    function confirmSubmit() {
+        document.getElementById('submitModal').style.display = 'block';
+    }
+    
+    function closeSubmitModal() {
+        document.getElementById('submitModal').style.display = 'none';
+    }
+    
+    function submitQuiz() {
+        let form = document.getElementById('quiz-form');
+        let submitInput = document.createElement('input');
+        submitInput.type = 'hidden';
+        submitInput.name = 'submit_quiz';
+        submitInput.value = 'true';
+        form.appendChild(submitInput);
+        form.submit();
+    }
+    
+    function confirmCancel() {
+        document.getElementById('cancelModal').style.display = 'block';
+    }
+    
+    function closeCancelModal() {
+        document.getElementById('cancelModal').style.display = 'none';
+    }
+    
+    function cancelQuiz() {
+        let form = document.getElementById('quiz-form');
+        let cancelInput = document.createElement('input');
+        cancelInput.type = 'hidden';
+        cancelInput.name = 'cancel_quiz';
+        cancelInput.value = 'true';
+        form.appendChild(cancelInput);
+        form.submit();
+    }
 </script>
-{% endblock %}
 {% endblock %} 
