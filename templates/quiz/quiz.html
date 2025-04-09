@@ -12,8 +12,11 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
                     <select name="degree" id="degree-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" required>
                         <option value="">All Degrees</option>
-                        <option value="bpharm" {% if selected_degree == 'bpharm' %}selected{% endif %}>B.Pharm</option>
-                        <option value="dpharm" {% if selected_degree == 'dpharm' %}selected{% endif %}>D.Pharm</option>
+                        {% for degree in accessible_degrees %}
+                        <option value="{{ degree|lower }}" {% if selected_degree == degree|lower %}selected{% endif %}>
+                            {% if degree|lower == 'dpharm' %}D.Pharm{% elif degree|lower == 'bpharm' %}B.Pharm{% else %}{{ degree }}{% endif %}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div>

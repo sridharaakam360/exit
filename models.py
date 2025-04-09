@@ -59,7 +59,6 @@ def init_db():
             password VARCHAR(255) NOT NULL,
             degree ENUM('Dpharm', 'Bpharm', 'none') DEFAULT 'none',
             role ENUM('individual', 'student', 'instituteadmin', 'superadmin') DEFAULT 'individual',
-            user_type ENUM('individual', 'institutional') DEFAULT 'individual',
             status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
             institution_id INT,
             subscription_plan_id INT,
@@ -196,7 +195,7 @@ def init_db():
 
 class User(UserMixin):
     def __init__(self, id, username, email, password=None, password_hash=None, role='individual', status='active', degree='none', 
-                 user_type='individual', institution_id=None, subscription_plan_id=None,
+                 institution_id=None, subscription_plan_id=None,
                  subscription_start=None, subscription_end=None, subscription_status='pending',
                  last_active=None, created_at=None):
         self.id = id
@@ -206,7 +205,6 @@ class User(UserMixin):
         self.role = role
         self.status = status
         self.degree = degree
-        self.user_type = user_type
         self.institution_id = institution_id
         self.subscription_plan_id = subscription_plan_id
         self.subscription_start = subscription_start

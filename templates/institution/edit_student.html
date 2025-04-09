@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Student{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Edit Student</h1>
+        <a href="{{ url_for('institution.manage_students') }}" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+            Back to Students
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-4 p-4 rounded-lg {% if category == 'danger' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <form method="POST" action="{{ url_for('institution.edit_student', student_id=student.id) }}" class="space-y-4">
+            {{ form.csrf_token }}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Institution Code</label>
+                <input type="text" name="institution_code" id="institution_code" value="{{ form.institution_code.data }}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm" readonly>
+            </div>
+            
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                {{ form.username(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm") }}
+                {% if form.username.errors %}
+                    <div class="text-red-600 text-sm mt-1">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                {{ form.email(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm") }}
+                {% if form.email.errors %}
+                    <div class="text-red-600 text-sm mt-1">
+                        {% for error in form.email.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Password <span class="text-sm text-gray-500">(Leave blank to keep current password)</span>
+                </label>
+                {{ form.password(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 shadow-sm") }}
+                {% if form.password.errors %}
+                    <div class="text-red-600 text-sm mt-1">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="flex justify-between pt-4">
+                <a href="{{ url_for('institution.manage_students') }}" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600">
+                    Cancel
+                </a>
+                {{ form.submit(class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700") }}
+            </div>
+        </form>
+    </div>
+
+    {% if student %}
+    <div class="mt-6 bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Student Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                <p class="font-medium">
+                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        {% if student.status == 'active' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ student.status }}
+                    </span>
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Account Created</p>
+                <p class="font-medium">{{ student.created_at.strftime('%Y-%m-%d %H:%M') if student.created_at else 'N/A' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Last Active</p>
+                <p class="font-medium">{{ student.last_active.strftime('%Y-%m-%d %H:%M') if student.last_active else 'Never' }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

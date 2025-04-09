@@ -153,9 +153,20 @@ def create_auth_bp(limiter):
                 user_data = cursor.fetchone()
                 
                 if user_data:
-                    # Create a dictionary without institution_name for User object
-                    user_dict = {k: v for k, v in user_data.items() if k != 'institution_name'}
-                    user = User(**user_dict)
+                    # Make sure institution_id is included in the User object
+                    institution_id = user_data['institution_id']
+                    institution_name = user_data['institution_name']
+                    
+                    # Create User object properly including institution_id
+                    user = User(
+                        id=user_data['id'],
+                        username=user_data['username'],
+                        email=user_data['email'],
+                        password_hash=user_data['password_hash'],
+                        role=user_data['role'],
+                        status=user_data['status'],
+                        institution_id=institution_id
+                    )
                     
                     if user.check_password(password):
                         if user.status != 'active':
@@ -166,8 +177,12 @@ def create_auth_bp(limiter):
                             session['user_id'] = user.id
                             session['username'] = user.username
                             session['role'] = user.role
-                            session['institution_id'] = user.institution_id
-                            session['institution_name'] = user_data['institution_name']
+                            session['institution_id'] = institution_id
+                            session['institution_name'] = institution_name
+                            
+                            # Add logging to debug
+                            logger.info(f"Institution login successful for {username}, institution_id: {institution_id}")
+                            logger.debug(f"User object: {vars(user)}")
                             
                             flash('Login successful!', 'success')
                             return redirect(url_for('institution.institution_dashboard'))

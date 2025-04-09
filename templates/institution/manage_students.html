@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Students{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Manage Students</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-4 p-4 rounded-lg {% if category == 'danger' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="mb-8 flex space-x-4">
+        <button onclick="toggleAddStudentForm()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+            Add New Student
+        </button>
+        <a href="{{ url_for('institution.bulk_add_students') }}" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Bulk Add Students
+        </a>
+    </div>
+
+    <div id="addStudentForm" class="hidden mb-8 p-6 bg-white rounded-lg shadow">
+        <h2 class="text-xl font-semibold mb-4">Add New Student</h2>
+        <form method="POST" class="space-y-4">
+            {{ form.csrf_token }}
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Institution Code</label>
+                <input type="text" value="{{ institution_code }}" class="mt-1 block w-full rounded-md border-gray-300" readonly>
+            </div>
+            
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                {{ form.username(class="mt-1 block w-full rounded-md border-gray-300") }}
+            </div>
+            
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                {{ form.email(class="mt-1 block w-full rounded-md border-gray-300") }}
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                {{ form.password(class="mt-1 block w-full rounded-md border-gray-300") }}
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Add Student
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if students %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz Stats</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for student in students %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ student.username }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ student.email }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if student.status == 'active' %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ student.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div>Quizzes: {{ student.quiz_count or 0 }}</div>
+                        <div>Avg Score: {{ "%.1f"|format(student.avg_score or 0) }}%</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <a href="{{ url_for('institution.student_details', student_id=student.id) }}" 
+                           class="text-blue-600 hover:text-blue-900">Details</a>
+                        <button onclick="toggleStudentStatus({{ student.id }})" 
+                           class="text-yellow-600 hover:text-yellow-900">
+                            {{ 'Deactivate' if student.status == 'active' else 'Activate' }}
+                        </button>
+                        <button onclick="confirmDelete({{ student.id }})" 
+                           class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="mt-4 flex justify-center">
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            {% if page > 1 %}
+            <a href="{{ url_for('institution.manage_students', page=page-1) }}" 
+               class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            
+            {% for p in range(1, total_pages + 1) %}
+            <a href="{{ url_for('institution.manage_students', page=p) }}" 
+               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium 
+                      {% if p == page %}text-blue-600 bg-blue-50{% else %}text-gray-700 hover:bg-gray-50{% endif %}">
+                {{ p }}
+            </a>
+            {% endfor %}
+            
+            {% if page < total_pages %}
+            <a href="{{ url_for('institution.manage_students', page=page+1) }}" 
+               class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                Next
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="text-gray-600">No students found. Use the buttons above to add students.</p>
+    {% endif %}
+</div>
+
+<script>
+function toggleAddStudentForm() {
+    const form = document.getElementById('addStudentForm');
+    form.classList.toggle('hidden');
+}
+
+function toggleStudentStatus(studentId) {
+    if (confirm('Are you sure you want to change this student\'s status?')) {
+        fetch(`/institution/toggle_student_status/${studentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating status');
+        });
+    }
+}
+
+function confirmDelete(studentId) {
+    if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+        fetch(`/institution/delete_student/${studentId}`, {
+            method: 'POST'
+        })
+        .then(() => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the student');
+        });
+    }
+}
+</script>
+{% endblock %} 

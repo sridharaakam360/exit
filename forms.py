@@ -97,7 +97,7 @@ class AddStudentForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[Optional(), Length(min=6)])
-    institution_code = StringField('Institution Code', validators=[DataRequired()])
+    institution_code = StringField('Institution Code', validators=[Optional()])
     submit = SubmitField('Add Student')
 
 class SubscriptionForm(FlaskForm):

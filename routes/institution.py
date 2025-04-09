@@ -41,23 +41,26 @@ def institution_dashboard():
                          AVG(r.score / r.total_questions * 100) as avg_score,
                          COUNT(DISTINCT r.id) as quiz_count
             FROM users u
+            JOIN institution_students ist ON u.id = ist.user_id
             LEFT JOIN results r ON u.id = r.user_id
-            WHERE u.institution_id = %s AND u.role = 'student' ''', 
+            WHERE ist.institution_id = %s AND u.role = 'student' ''', 
             (session['institution_id'],))
         stats = cursor.fetchone()
         
-        cursor.execute('''SELECT u.username, r.score, r.total_questions, r.date_taken, e.name as exam_name
+        cursor.execute('''SELECT u.username, r.score, r.total_questions, r.date_taken,
+                        s.name as subject_name
             FROM users u
+            JOIN institution_students ist ON u.id = ist.user_id
             LEFT JOIN results r ON u.id = r.user_id
-            LEFT JOIN exams e ON r.exam_id = e.id
-            WHERE u.institution_id = %s AND u.role = 'student'
+            LEFT JOIN subjects s ON r.subject_id = s.id
+            WHERE ist.institution_id = %s AND u.role = 'student'
             ORDER BY r.date_taken DESC
             LIMIT 5''', (session['institution_id'],))
         recent_results = cursor.fetchall()
         
         stats['avg_score'] = round(stats['avg_score'], 1) if stats['avg_score'] else 0
         
-        return render_template('institution_dashboard.html',
+        return render_template('institution/institution_dashboard.html',
                             institution=institution,
                             stats=stats,
                             recent_results=recent_results,
@@ -65,7 +68,7 @@ def institution_dashboard():
     except Error as err:
         logger.error(f"Database error in institution dashboard: {str(err)}")
         flash('Error retrieving dashboard data.', 'danger')
-        return render_template('institution_dashboard.html',
+        return render_template('institution/institution_dashboard.html',
                             institution=None,
                             stats={'student_count': 0, 'avg_score': 0, 'quiz_count': 0},
                             recent_results=[])
@@ -99,7 +102,7 @@ def manage_students():
                 institution = cursor.fetchone()
             else:
                 # No institution selected yet
-                return render_template('manage_students.html',
+                return render_template('institution/manage_students.html',
                                     institutions=institution_list,
                                     students=[],
                                     student_count=0,
@@ -130,11 +133,11 @@ def manage_students():
             else:
                 try:
                     conn.autocommit = False
-                    # Insert user
+                    # Insert user - remove institution_id from direct insert since we'll use institution_students
                     cursor.execute('''INSERT INTO users 
-                        (username, email, password_hash, role, user_type, status, institution_id, last_active)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())''',
-                        (username, email, password, 'student', 'institutional', 'active', selected_institution_id))
+                        (username, email, password_hash, role, status, last_active)
+                        VALUES (%s, %s, %s, %s, %s, NOW())''',
+                        (username, email, password, 'student', 'active'))
                     user_id = cursor.lastrowid
                     
                     # Insert student-institution relation
@@ -156,26 +159,33 @@ def manage_students():
         per_page = 20
         offset = (page - 1) * per_page
         
-        cursor.execute('SELECT COUNT(*) as total FROM users WHERE institution_id = %s AND role = "student"', 
-                      (selected_institution_id,))
+        # Update to use institution_students table
+        cursor.execute('''
+            SELECT COUNT(*) as total 
+            FROM users u
+            JOIN institution_students ist ON u.id = ist.user_id
+            WHERE ist.institution_id = %s AND u.role = "student"
+        ''', (selected_institution_id,))
         student_count = cursor.fetchone()['total']
         total_pages = (student_count + per_page - 1) // per_page
         
+        # Update to use institution_students table
         cursor.execute('''SELECT u.id, u.username, u.email, u.status, u.created_at, 
                          COUNT(r.id) as quiz_count,
                          AVG(r.score / r.total_questions * 100) as avg_score,
                          MAX(r.date_taken) as last_quiz_date,
                          u.last_active
                          FROM users u
+                         JOIN institution_students ist ON u.id = ist.user_id
                          LEFT JOIN results r ON u.id = r.user_id
-                         WHERE u.institution_id = %s AND u.role = 'student'
+                         WHERE ist.institution_id = %s AND u.role = 'student'
                          GROUP BY u.id
                          ORDER BY u.username
                          LIMIT %s OFFSET %s''', 
                          (selected_institution_id, per_page, offset))
         students = cursor.fetchall()
         
-        return render_template('manage_students.html', 
+        return render_template('institution/manage_students.html', 
                               students=students, 
                               student_count=student_count,
                               page=page,
@@ -227,48 +237,68 @@ def edit_student(student_id):
             cursor.execute('SELECT institution_code FROM institutions WHERE id = %s', (session['institution_id'],))
             institution = cursor.fetchone()
             form.institution_code.data = institution['institution_code'] if institution else ''
-        
-        elif form.validate_on_submit():
-            username = sanitize_input(form.username.data)
-            email = sanitize_input(form.email.data)
-            password = form.password.data
             
-            # Check if username or email exists for other users
-            cursor.execute('SELECT id FROM users WHERE (username = %s OR email = %s) AND id != %s', 
-                          (username, email, student_id))
-            if cursor.fetchone():
-                flash('Username or email already exists for another user.', 'danger')
-            else:
-                try:
-                    conn.autocommit = False
-                    # Update user details
-                    if password:
-                        # Update with new password
-                        password_hash = generate_password_hash(password)
-                        cursor.execute('''UPDATE users 
-                            SET username = %s, email = %s, password_hash = %s, last_active = NOW()
-                            WHERE id = %s''', 
-                            (username, email, password_hash, student_id))
-                    else:
-                        # Update without changing password
-                        cursor.execute('''UPDATE users 
-                            SET username = %s, email = %s, last_active = NOW()
-                            WHERE id = %s''', 
-                            (username, email, student_id))
-                    
-                    conn.commit()
-                    flash('Student updated successfully.', 'success')
-                    return redirect(url_for('institution.manage_students'))
-                except Error as err:
-                    if conn:
-                        try:
-                            conn.rollback()
-                        except Error:
-                            logger.error("Failed to rollback transaction")
-                    logger.error(f"Database error updating student: {str(err)}")
-                    flash('Error updating student.', 'danger')
+            # Change submit button label
+            form.submit.label.text = 'Update Student'
         
-        return render_template('edit_student.html', form=form, student=student)
+        elif request.method == 'POST':
+            # Log form data for debugging
+            logger.info(f"Form data: {request.form}")
+            
+            if form.validate_on_submit():
+                username = sanitize_input(form.username.data)
+                email = sanitize_input(form.email.data)
+                password = form.password.data
+                
+                # Check if username or email exists for other users
+                cursor.execute('SELECT id FROM users WHERE (username = %s OR email = %s) AND id != %s', 
+                              (username, email, student_id))
+                if cursor.fetchone():
+                    flash('Username or email already exists for another user.', 'danger')
+                else:
+                    try:
+                        conn.autocommit = False
+                        # Update user details
+                        if password:
+                            # Update with new password
+                            password_hash = generate_password_hash(password)
+                            cursor.execute('''UPDATE users 
+                                SET username = %s, email = %s, password_hash = %s, last_active = NOW()
+                                WHERE id = %s''', 
+                                (username, email, password_hash, student_id))
+                        else:
+                            # Update without changing password
+                            cursor.execute('''UPDATE users 
+                                SET username = %s, email = %s, last_active = NOW()
+                                WHERE id = %s''', 
+                                (username, email, student_id))
+                        
+                        conn.commit()
+                        flash('Student updated successfully.', 'success')
+                        return redirect(url_for('institution.manage_students'))
+                    except Error as err:
+                        if conn:
+                            try:
+                                conn.rollback()
+                            except Error:
+                                logger.error("Failed to rollback transaction")
+                        logger.error(f"Database error updating student: {str(err)}")
+                        flash('Error updating student.', 'danger')
+            else:
+                # If form validation fails on POST
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        flash(f"Error in {getattr(form, field).label.text}: {error}", 'danger')
+                        logger.warning(f"Form field '{field}' error: {error}")
+                
+                logger.warning(f"Form validation failed: {form.errors}")
+                
+                # Check if the form was actually submitted
+                if 'submit' not in request.form:
+                    logger.warning("Form submit button not found in request data")
+                    flash("Form submission error. Please try again.", 'danger')
+        
+        return render_template('institution/edit_student.html', form=form, student=student)
     
     except Error as err:
         logger.error(f"Database error in edit_student: {str(err)}")
@@ -362,13 +392,13 @@ def student_details(student_id):
             flash('Student not found or not authorized.', 'danger')
             return redirect(url_for('institution.manage_students'))
         
-        # Get student's quiz results
+        # Get student's quiz results - updated to use subjects instead of exams
         cursor.execute('''SELECT r.*, 
-                         e.name as exam_name, 
+                         s.name as subject_name, 
                          DATE_FORMAT(r.date_taken, '%d-%m-%Y %H:%i') as date_formatted,
                          ROUND((r.score / r.total_questions) * 100, 1) as percentage
                          FROM results r
-                         LEFT JOIN exams e ON r.exam_id = e.id
+                         LEFT JOIN subjects s ON r.subject_id = s.id
                          WHERE r.user_id = %s
                          ORDER BY r.date_taken DESC''', (student_id,))
         results = cursor.fetchall()
@@ -382,7 +412,7 @@ def student_details(student_id):
                          WHERE r.user_id = %s''', (student_id,))
         stats = cursor.fetchone()
         
-        return render_template('student_details.html', 
+        return render_template('institution/student_details.html', 
                               student=student, 
                               results=results, 
                               stats=stats)
@@ -459,9 +489,9 @@ def bulk_add_students():
                 hashed_password = generate_password_hash(password)
                 
                 cursor.execute('''INSERT INTO users 
-                    (username, email, password_hash, role, user_type, status, institution_id, last_active)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())''',
-                    (username, email, hashed_password, 'student', 'institutional', 'active', institution_id))
+                    (username, email, password_hash, role, status, last_active)
+                    VALUES (%s, %s, %s, %s, %s, NOW())''',
+                    (username, email, hashed_password, 'student', 'active'))
                 user_id = cursor.lastrowid
                 
                 cursor.execute('''INSERT INTO institution_students 
@@ -516,7 +546,7 @@ def bulk_add_students():
             cursor.close()
             conn.close()
     
-    return render_template('bulk_add_students.html', institution_code=institution_code)
+    return render_template('institution/bulk_add_students.html', institution_code=institution_code)
 
 @institution_bp.route('/toggle_student_status/<int:student_id>', methods=['POST'])
 @institute_admin_required
@@ -611,7 +641,7 @@ def add_institution():
         
         return redirect(url_for('institution.manage_institutions'))
     
-    return render_template('add_institution.html')
+    return render_template('institution/add_institution.html')
 
 @institution_bp.route('/edit_institution/<int:institution_id>', methods=['GET', 'POST'])
 @super_admin_required
@@ -629,7 +659,7 @@ def edit_institution(institution_id):
             if not institution:
                 flash('Institution not found.', 'danger')
                 return redirect(url_for('institution.manage_institutions'))
-            return render_template('edit_institution.html', institution=institution)
+            return render_template('institution/edit_institution.html', institution=institution)
         
         elif request.method == 'POST':
             name = request.form.get('name')
@@ -684,7 +714,7 @@ def institution_subscription():
     try:
         # Get current institution subscription
         cursor.execute('''SELECT i.*, sp.name as plan_name, sp.description as plan_description,
-                         sp.student_range, sp.custom_student_range
+                         sp.student_range, sp.custom_student_range, sp.degree_access
             FROM institutions i
             LEFT JOIN subscription_plans sp ON i.subscription_plan_id = sp.id
             WHERE i.id = %s''', (session['institution_id'],))
@@ -713,12 +743,16 @@ def institution_subscription():
             ORDER BY price''')
         plans = cursor.fetchall()
         
-        # Get accessible exams for each plan
+        # Get accessible subjects for each plan based on degree_access
         for plan in plans:
-            cursor.execute('''SELECT e.id, e.name FROM plan_exam_access pea 
-                            JOIN exams e ON pea.exam_id = e.id 
-                            WHERE pea.plan_id = %s''', (plan['id'],))
-            plan['exams'] = [{'id': row['id'], 'name': row['name']} for row in cursor.fetchall()]
+            # Get subjects available for this plan's degree_access
+            if plan['degree_access'] == 'both':
+                cursor.execute('SELECT id, name, degree_type FROM subjects')
+            else:
+                cursor.execute('SELECT id, name, degree_type FROM subjects WHERE degree_type = %s', 
+                             (plan['degree_access'],))
+            
+            plan['subjects'] = cursor.fetchall()
             
             if institution and institution['subscription_plan_id'] == plan['id']:
                 plan['is_active'] = True
@@ -727,7 +761,7 @@ def institution_subscription():
                 plan['is_active'] = False
                 plan['expires_on'] = None
         
-        return render_template('institution_subscription.html',
+        return render_template('institution/institution_subscription.html',
                             institution=institution,
                             plans=plans,
                             stats=stats,
@@ -795,13 +829,16 @@ def institution_subscribe(plan_id):
             flash('Subscription updated successfully!', 'success')
             return redirect(url_for('institution.institution_dashboard'))
         
-        # Get plan's accessible exams
-        cursor.execute('''SELECT e.id, e.name FROM plan_exam_access pea 
-                        JOIN exams e ON pea.exam_id = e.id 
-                        WHERE pea.plan_id = %s''', (plan_id,))
-        plan['exams'] = [{'id': row['id'], 'name': row['name']} for row in cursor.fetchall()]
+        # Get subjects available for this plan's degree_access
+        if plan['degree_access'] == 'both':
+            cursor.execute('SELECT id, name, degree_type FROM subjects')
+        else:
+            cursor.execute('SELECT id, name, degree_type FROM subjects WHERE degree_type = %s', 
+                         (plan['degree_access'],))
         
-        return render_template('institution_subscribe.html', 
+        plan['subjects'] = cursor.fetchall()
+        
+        return render_template('institution/institution_subscribe.html', 
                              plan=plan,
                              stats=stats)
         
@@ -812,3 +849,4 @@ def institution_subscribe(plan_id):
     finally:
         cursor.close()
         conn.close()
+        

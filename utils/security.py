@@ -51,11 +51,24 @@ def institute_admin_required(f):
             
         # For institute admins, check institution_id
         if current_user.role == 'instituteadmin':
-            if not hasattr(current_user, 'institution_id') or not current_user.institution_id:
-                logger.warning("Missing institution_id for institute admin")
-                flash('Session expired or invalid. Please log in again.', 'danger')
-                return redirect(url_for('auth.institution_login'))
-            return f(*args, **kwargs)
+            # First check session
+            if 'institution_id' in session and session['institution_id']:
+                logger.debug(f"Using institution_id {session['institution_id']} from session")
+                return f(*args, **kwargs)
+                
+            # Then check user object
+            if hasattr(current_user, 'institution_id') and current_user.institution_id:
+                # Update session with the value from the user object
+                session['institution_id'] = current_user.institution_id
+                logger.debug(f"Updated session with institution_id {current_user.institution_id} from user object")
+                return f(*args, **kwargs)
+                
+            # If we get here, no institution_id was found
+            logger.warning(f"Missing institution_id for institute admin {current_user.username}")
+            logger.debug(f"User object: {vars(current_user)}")
+            logger.debug(f"Session: {session}")
+            flash('Invalid institution credentials. Please log in again.', 'danger')
+            return redirect(url_for('auth.institution_login'))
             
         # For other roles, deny access
         flash('You do not have permission to access this page.', 'danger')

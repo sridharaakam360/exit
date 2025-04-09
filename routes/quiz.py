@@ -10,6 +10,7 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from flask_wtf.csrf import CSRFProtect
 import time
+from flask_login import current_user
 
 quiz_bp = Blueprint('quiz', __name__)
 logger = logging.getLogger(__name__)
@@ -59,19 +60,109 @@ def quiz():
         # Get selected degree from request, default to empty string (All Degrees)
         selected_degree = request.args.get('degree', '')
         
-        # Get subjects based on selected degree
-        if selected_degree:
-            cursor.execute('SELECT id, name FROM subjects WHERE degree_type = %s ORDER BY name', (selected_degree,))
+        # Check user role and subscription for degree access control
+        accessible_degrees = []
+        
+        # Superadmin has access to all degrees
+        if current_user.role == 'superadmin':
+            accessible_degrees = ['dpharm', 'bpharm']
+        # For institution admin, check their subscription plan's degree access
+        elif current_user.role == 'instituteadmin':
+            cursor.execute('''
+                SELECT sp.degree_access
+                FROM institutions i
+                JOIN subscription_plans sp ON i.subscription_plan_id = sp.id
+                WHERE i.id = %s AND i.subscription_end >= CURDATE()
+            ''', (session['institution_id'],))
+            subscription = cursor.fetchone()
+            
+            if subscription and subscription['degree_access']:
+                if subscription['degree_access'] == 'both':
+                    accessible_degrees = ['dpharm', 'bpharm']
+                else:
+                    accessible_degrees = [subscription['degree_access'].lower()]
+            else:
+                flash('Your institution doesn\'t have an active subscription or access to any degrees.', 'warning')
+                return redirect(url_for('institution.institution_dashboard'))
+                
+        # For students, check their institution's subscription
+        elif current_user.role == 'student':
+            cursor.execute('''
+                SELECT sp.degree_access
+                FROM institutions i
+                JOIN institution_students ist ON i.id = ist.institution_id
+                JOIN subscription_plans sp ON i.subscription_plan_id = sp.id
+                WHERE ist.user_id = %s AND i.subscription_end >= CURDATE()
+            ''', (current_user.id,))
+            subscription = cursor.fetchone()
+            
+            if subscription and subscription['degree_access']:
+                if subscription['degree_access'] == 'both':
+                    accessible_degrees = ['dpharm', 'bpharm']
+                else:
+                    accessible_degrees = [subscription['degree_access'].lower()]
+            else:
+                flash('Your institution doesn\'t have an active subscription or access to any degrees.', 'warning')
+                return redirect(url_for('user.user_dashboard'))
+                
+        # For individual users, check their subscription
         else:
-            cursor.execute('SELECT id, name, degree_type FROM subjects ORDER BY name')
+            cursor.execute('''
+                SELECT sp.degree_access
+                FROM users u
+                JOIN subscription_plans sp ON u.subscription_plan_id = sp.id
+                WHERE u.id = %s AND u.subscription_end >= CURDATE() AND u.subscription_status = 'active'
+            ''', (current_user.id,))
+            subscription = cursor.fetchone()
+            
+            if subscription and subscription['degree_access']:
+                if subscription['degree_access'] == 'both':
+                    accessible_degrees = ['dpharm', 'bpharm']
+                else:
+                    accessible_degrees = [subscription['degree_access'].lower()]
+            else:
+                flash('You don\'t have an active subscription with access to any degrees.', 'warning')
+                return redirect(url_for('user.subscriptions'))
+        
+        # Validate that selected degree is accessible to this user
+        if selected_degree and selected_degree.lower() not in [d.lower() for d in accessible_degrees]:
+            flash(f'You don\'t have access to {selected_degree} content.', 'warning')
+            selected_degree = ''  # Reset to show all accessible degrees
+        
+        # Get subjects based on accessible degrees and selected degree
+        if selected_degree:
+            cursor.execute('SELECT id, name, degree_type FROM subjects WHERE degree_type = %s ORDER BY name', (selected_degree,))
+        else:
+            degree_params = ', '.join(['%s'] * len(accessible_degrees))
+            cursor.execute(f'SELECT id, name, degree_type FROM subjects WHERE degree_type IN ({degree_params}) ORDER BY name', accessible_degrees)
+        
         subjects = cursor.fetchall()
         
-        # Get unique chapters based on degree filter
-        if selected_degree:
-            cursor.execute('SELECT DISTINCT chapter FROM questions WHERE subject_id IN (SELECT id FROM subjects WHERE degree_type = %s) ORDER BY chapter', (selected_degree,))
+        # Get unique chapters based on degree filter and accessible subjects
+        if subjects:
+            subject_ids = [str(s['id']) for s in subjects]
+            subject_ids_str = ', '.join(subject_ids)
+            
+            if selected_degree:
+                cursor.execute(f'''
+                    SELECT DISTINCT chapter 
+                    FROM questions 
+                    WHERE subject_id IN (SELECT id FROM subjects WHERE degree_type = %s) 
+                    AND chapter IS NOT NULL AND chapter != ''
+                    ORDER BY chapter
+                ''', (selected_degree,))
+            else:
+                cursor.execute(f'''
+                    SELECT DISTINCT chapter 
+                    FROM questions 
+                    WHERE subject_id IN ({subject_ids_str})
+                    AND chapter IS NOT NULL AND chapter != ''
+                    ORDER BY chapter
+                ''')
+            
+            chapters = [row['chapter'] for row in cursor.fetchall()]
         else:
-            cursor.execute('SELECT DISTINCT chapter FROM questions ORDER BY chapter')
-        chapters = [row['chapter'] for row in cursor.fetchall()]
+            chapters = []
         
         if request.method == 'POST':
             form = request.form
@@ -79,6 +170,19 @@ def quiz():
             chapter = form.get('chapter')
             difficulty = form.get('difficulty')
             question_type = form.get('type')
+            
+            # Verify subject is accessible to this user
+            if subject_id:
+                cursor.execute('''
+                    SELECT s.degree_type 
+                    FROM subjects s 
+                    WHERE s.id = %s
+                ''', (subject_id,))
+                subject = cursor.fetchone()
+                
+                if not subject or subject['degree_type'].lower() not in [d.lower() for d in accessible_degrees]:
+                    flash('You don\'t have access to this subject.', 'danger')
+                    return redirect(url_for('quiz.quiz'))
             
             # Build query based on filters
             query = '''
@@ -95,8 +199,20 @@ def quiz():
                 params.append(subject_id)
             # Add degree filter if provided but no subject
             elif selected_degree:
-                query += ' AND s.degree_type = %s'
+                query += ' AND LOWER(s.degree_type) = LOWER(%s)'
                 params.append(selected_degree)
+            # Otherwise limit to accessible degrees
+            else:
+                if accessible_degrees:
+                    query += ' AND ('
+                    degree_conditions = []
+                    for _ in accessible_degrees:
+                        degree_conditions.append('LOWER(s.degree_type) = LOWER(%s)')
+                    query += ' OR '.join(degree_conditions) + ')'
+                    params.extend(accessible_degrees)
+                else:
+                    # Failsafe - if no accessible degrees, return no results
+                    query += ' AND 1=0'
             
             # Add chapter filter if provided
             if chapter:
@@ -136,7 +252,8 @@ def quiz():
         return render_template('quiz/quiz.html', 
                              subjects=subjects, 
                              chapters=chapters,
-                             selected_degree=selected_degree)
+                             selected_degree=selected_degree,
+                             accessible_degrees=accessible_degrees)
     
     except Error as err:
         logger.error(f"Database error in quiz: {str(err)}")
