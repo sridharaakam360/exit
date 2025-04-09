@@ -56,6 +56,9 @@ class QuestionForm(FlaskForm):
     difficulty = SelectField('Difficulty', 
                            choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], 
                            validators=[DataRequired()])
+    degree = SelectField('Degree', 
+                        choices=[('', 'All Degrees'), ('bpharm', 'B.Pharm'), ('dpharm', 'D.Pharm')], 
+                        validators=[DataRequired()])
     subject_id = SelectField('Subject', coerce=int, validators=[DataRequired()])
     is_previous_year = BooleanField('Previous Year Question')
     previous_year = StringField('Previous Year', validators=[Optional()])

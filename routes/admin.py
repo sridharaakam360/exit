@@ -78,29 +78,43 @@ def manage_questions():
     cursor = conn.cursor(dictionary=True)
     try:
         form = QuestionForm()
-        cursor.execute('SELECT id, name FROM subjects ORDER BY name')
-        subjects = cursor.fetchall()
+        
+        # Get selected degree, default to empty string (All Degrees)
+        selected_degree = request.form.get('degree') or request.args.get('degree', '')
+        
+        # If All Degrees is selected, get all subjects
+        if not selected_degree:
+            cursor.execute('SELECT id, name, degree_type FROM subjects ORDER BY name')
+            subjects = cursor.fetchall()
+        else:
+            # Get subjects for specific degree
+            cursor.execute('SELECT id, name, degree_type FROM subjects WHERE degree_type = %s ORDER BY name', (selected_degree,))
+            subjects = cursor.fetchall()
+        
         if not subjects:
-            flash('No subjects available. Please add subjects first.', 'danger')
-            return redirect(url_for('admin.admin_dashboard'))
+            flash('No subjects available. Please add subjects first.', 'warning')
+        
+        # Set form dropdown choices
         form.subject_id.choices = [(s['id'], s['name']) for s in subjects]
+        form.degree.data = selected_degree if selected_degree else ''
 
         if request.method == 'POST':
             if form.validate_on_submit():
                 try:
                     topics_json = json.dumps([t.strip() for t in form.topics.data.split(',')]) if form.topics.data else '[]'
                     cursor.execute('''INSERT INTO questions 
-                                    (question, option_a, option_b, option_c, option_d, correct_answer, chapter, difficulty, subject_id, 
-                                    is_previous_year, previous_year, topics, explanation, created_by) 
+                                    (question, option_a, option_b, option_c, option_d, correct_answer, chapter, difficulty, 
+                                    subject_id, is_previous_year, previous_year, topics, explanation, created_by) 
                                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''',
                                     (form.question.data, form.option_a.data, form.option_b.data,
                                      form.option_c.data, form.option_d.data, form.correct_answer.data,
                                      form.chapter.data, form.difficulty.data, form.subject_id.data,
-                                     form.is_previous_year.data, form.previous_year.data if form.is_previous_year.data else None,
+                                     form.is_previous_year.data, 
+                                     form.previous_year.data if form.is_previous_year.data else None,
                                      topics_json, form.explanation.data, session['user_id']))
                     conn.commit()
                     flash('Question added successfully.', 'success')
-                    return redirect(url_for('admin.manage_questions'))
+                    return redirect(url_for('admin.manage_questions', degree=selected_degree))
                 except Error as err:
                     conn.rollback()
                     logger.error(f"Database error while adding question: {str(err)}")
@@ -113,6 +127,7 @@ def manage_questions():
                 flash('Please correct the errors in the form.', 'danger')
 
         # Get filter parameters
+        degree_filter = request.args.get('degree', '')
         subject_filter = request.args.get('subject', '')
         difficulty_filter = request.args.get('difficulty', '')
         type_filter = request.args.get('type', '')
@@ -121,7 +136,7 @@ def manage_questions():
         per_page = 20
 
         # Build the base query
-        base_query = '''SELECT q.*, u.username, s.name AS subject_name 
+        base_query = '''SELECT q.*, u.username, s.name AS subject_name, s.degree_type 
                        FROM questions q 
                        LEFT JOIN users u ON q.created_by = u.id 
                        JOIN subjects s ON q.subject_id = s.id 
@@ -129,6 +144,10 @@ def manage_questions():
         query_params = []
 
         # Add filters
+        if degree_filter:
+            base_query += ' AND s.degree_type = %s'
+            query_params.append(degree_filter)
+            
         if subject_filter:
             base_query += ' AND q.subject_id = %s'
             query_params.append(int(subject_filter))
@@ -168,7 +187,8 @@ def manage_questions():
                              form=form, 
                              page=page, 
                              total_pages=total_pages, 
-                             total_questions=total_questions)
+                             total_questions=total_questions,
+                             selected_degree=degree_filter)
     
     except Error as err:
         conn.rollback()

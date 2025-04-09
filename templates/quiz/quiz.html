@@ -1,87 +1,185 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">Create Quiz</h2>
-    
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Quiz Settings</h5>
-                    <form method="POST" action="{{ url_for('quiz.quiz') }}">
-                        <div class="form-group mb-3">
-                            <label for="subject_id">Select Subject</label>
-                            <select class="form-control" id="subject_id" name="subject_id" required>
-                                <option value="">Choose a subject</option>
-                                {% for subject in subjects %}
-                                <option value="{{ subject.id }}" {% if subject_id == subject.id %}selected{% endif %}>
-                                    {{ subject.name }} ({{ subject.degree_type }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <label for="chapter">Select Chapter (Optional)</label>
-                            <select class="form-control" id="chapter" name="chapter">
-                                <option value="">All Chapters</option>
-                                {% for chapter in chapters %}
-                                <option value="{{ chapter }}">{{ chapter }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <label>Select Topics (Optional)</label>
-                            <div class="row">
-                                {% for topic in topics %}
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="topics" value="{{ topic }}" id="topic_{{ loop.index }}">
-                                        <label class="form-check-label" for="topic_{{ loop.index }}">{{ topic }}</label>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <label for="difficulty">Select Difficulty</label>
-                            <select class="form-control" id="difficulty" name="difficulty">
-                                <option value="">All Difficulties</option>
-                                <option value="easy">Easy</option>
-                                <option value="medium">Medium</option>
-                                <option value="hard">Hard</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <label for="num_questions">Number of Questions</label>
-                            <input type="number" class="form-control" id="num_questions" name="num_questions" value="10" min="1" max="50">
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">Start Quiz</button>
-                    </form>
+<div class="container mx-auto py-6">
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <h1 class="text-2xl font-bold mb-6">Select Quiz</h1>
+        
+        <form method="POST" class="space-y-4" id="quiz-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
+                    <select name="degree" id="degree-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" required>
+                        <option value="">All Degrees</option>
+                        <option value="bpharm" {% if selected_degree == 'bpharm' %}selected{% endif %}>B.Pharm</option>
+                        <option value="dpharm" {% if selected_degree == 'dpharm' %}selected{% endif %}>D.Pharm</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                    <select name="subject" id="subject-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" required>
+                        <option value="">All Subjects</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}">
+                            {{ subject.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
-        </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Chapter</label>
+                    <select name="chapter" id="chapter-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Chapters</option>
+                        {% for chapter in chapters %}
+                        <option value="{{ chapter }}">
+                            {{ chapter }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Difficulty</label>
+                    <select name="difficulty" id="difficulty-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Question Type</label>
+                    <select name="type" id="type-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Types</option>
+                        <option value="previous_year">Previous Year</option>
+                        <option value="practice">Practice</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-between space-x-3 items-center">
+                <div id="question-count" class="py-2 px-3 text-sm font-medium"></div>
+                <div>
+                    <button type="submit" class="btn-primary">Start Quiz</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
-{% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const subjectSelect = document.getElementById('subject_id');
-    if (subjectSelect) {
-        subjectSelect.addEventListener('change', function() {
-            const subjectId = this.value;
-            if (subjectId) {
-                window.location.href = `{{ url_for('quiz.quiz') }}?subject_id=${subjectId}`;
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        const degreeSelect = document.getElementById('degree-select');
+        const subjectSelect = document.getElementById('subject-select');
+        const chapterSelect = document.getElementById('chapter-select');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const typeSelect = document.getElementById('type-select');
+        const questionCountElement = document.getElementById('question-count');
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        // Function to update available subjects when degree changes
+        degreeSelect.addEventListener('change', function() {
+            // Create a form to submit
+            const form = document.createElement('form');
+            form.method = 'GET';
+            form.action = window.location.pathname;
+            
+            // Add the degree parameter
+            const degreeInput = document.createElement('input');
+            degreeInput.type = 'hidden';
+            degreeInput.name = 'degree';
+            degreeInput.value = this.value;
+            form.appendChild(degreeInput);
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+            
+            // Submit form to update subjects
+            document.body.appendChild(form);
+            form.submit();
         });
-    }
-});
+        
+        // Function to update available chapters when subject changes
+        subjectSelect.addEventListener('change', function() {
+            if (!this.value) {
+                resetChapterDropdown();
+                updateQuestionCount();
+                return;
+            }
+            
+            fetch(`/quiz/get-subject-filters?subject_id=${this.value}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    
+                    // Update chapters dropdown
+                    updateChapterDropdown(data.chapters);
+                    updateQuestionCount();
+                })
+                .catch(error => console.error('Error fetching filters:', error));
+        });
+        
+        // Function to update chapter dropdown with new options
+        function updateChapterDropdown(chapters) {
+            chapterSelect.innerHTML = '<option value="">All Chapters</option>';
+            
+            chapters.forEach(chapter => {
+                const option = document.createElement('option');
+                option.value = chapter;
+                option.textContent = chapter;
+                chapterSelect.appendChild(option);
+            });
+        }
+        
+        // Function to reset chapter dropdown
+        function resetChapterDropdown() {
+            chapterSelect.innerHTML = '<option value="">All Chapters</option>';
+        }
+        
+        // Function to update question count based on selected filters
+        function updateQuestionCount() {
+            const formData = new FormData();
+            formData.append('subject_id', subjectSelect.value || '');
+            formData.append('chapter', chapterSelect.value || '');
+            formData.append('difficulty', difficultySelect.value || '');
+            formData.append('type', typeSelect.value || '');
+            formData.append('csrf_token', csrfToken);
+            
+            fetch('/quiz/get-question-count', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error(data.error);
+                        return;
+                    }
+                    
+                    questionCountElement.textContent = `Available questions: ${data.count}`;
+                })
+                .catch(error => console.error('Error fetching question count:', error));
+        }
+        
+        // Update question count when any filter changes
+        chapterSelect.addEventListener('change', updateQuestionCount);
+        difficultySelect.addEventListener('change', updateQuestionCount);
+        typeSelect.addEventListener('change', updateQuestionCount);
+        
+        // Initial question count update if subject is selected
+        if (subjectSelect.value) {
+            updateQuestionCount();
+        }
+    });
 </script>
-{% endblock %}
 {% endblock %} 

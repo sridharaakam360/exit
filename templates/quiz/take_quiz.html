@@ -12,7 +12,7 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ question.question }}</h5>
                     
-                    <form method="POST" action="{{ url_for('quiz.take_quiz', question_number=current_question) }}" id="quiz-form">
+                    <form method="POST" action="{{ url_for('quiz.take_quiz') }}" id="quiz-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="time_taken" id="time-taken" value="0">
                         
@@ -46,7 +46,8 @@
                         <div class="text-center mt-4">
                             <div class="d-flex justify-content-between">
                                 {% if current_question > 1 %}
-                                <a href="{{ url_for('quiz.take_quiz', question_number=current_question-1) }}" class="btn btn-secondary">
+                                <a href="{{ url_for('quiz.take_quiz') }}" class="btn btn-secondary" 
+                                   onclick="goToPrevious(event)">
                                     <i class="fas fa-arrow-left"></i> Previous
                                 </a>
                                 {% else %}
@@ -102,6 +103,18 @@
             timeInput.value = elapsedSeconds;
         }, 1000);
     });
+    
+    function goToPrevious(event) {
+        event.preventDefault();
+        // Submit form with previous action
+        let form = document.getElementById('quiz-form');
+        let prevInput = document.createElement('input');
+        prevInput.type = 'hidden';
+        prevInput.name = 'previous_question';
+        prevInput.value = 'true';
+        form.appendChild(prevInput);
+        form.submit();
+    }
 </script>
 {% endblock %}
 {% endblock %} 

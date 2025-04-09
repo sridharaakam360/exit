@@ -12,6 +12,61 @@
         </button>
     </div>
 
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 mb-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4" id="filter-form">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
+                <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" 
+                        id="degree" name="degree">
+                    <option value="">All Degrees</option>
+                    <option value="bpharm" {% if request.args.get('degree') == 'bpharm' %}selected{% endif %}>B.Pharm</option>
+                    <option value="dpharm" {% if request.args.get('degree') == 'dpharm' %}selected{% endif %}>D.Pharm</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" 
+                        id="subject" name="subject">
+                    <option value="">All Subjects</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}" {% if request.args.get('subject')|int == subject.id %}selected{% endif %}>
+                        {{ subject.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Difficulty</label>
+                <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" 
+                        id="difficulty" name="difficulty">
+                    <option value="">All Difficulties</option>
+                    <option value="easy" {% if request.args.get('difficulty') == 'easy' %}selected{% endif %}>Easy</option>
+                    <option value="medium" {% if request.args.get('difficulty') == 'medium' %}selected{% endif %}>Medium</option>
+                    <option value="hard" {% if request.args.get('difficulty') == 'hard' %}selected{% endif %}>Hard</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+                <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" 
+                        id="type" name="type">
+                    <option value="">All Types</option>
+                    <option value="previous_year" {% if request.args.get('type') == 'previous_year' %}selected{% endif %}>Previous Year</option>
+                    <option value="practice" {% if request.args.get('type') == 'practice' %}selected{% endif %}>Practice</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600" 
+                       id="search" name="search" value="{{ request.args.get('search', '') }}" placeholder="Search...">
+            </div>
+            <div class="md:col-span-5 flex justify-end space-x-3">
+                <button type="submit" class="btn-primary">Apply Filters</button>
+                <a href="{{ url_for('admin.manage_questions') }}" class="btn-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+
     <!-- Add Question Modal -->
     <div id="addQuestionModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
@@ -24,6 +79,10 @@
             </div>
             <form action="{{ url_for('admin.manage_questions') }}" method="POST" class="space-y-4">
                 {{ form.csrf_token }}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
+                    {{ form.degree(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600") }}
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
                     {{ form.subject_id(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600") }}
@@ -96,6 +155,7 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Question</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Subject</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Degree</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Chapter</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Difficulty</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
@@ -116,6 +176,9 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm text-gray-900 dark:text-white">{{ question.subject_name }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 dark:text-white">{{ question.degree_type|upper }}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm text-gray-900 dark:text-white">{{ question.chapter }}</div>
@@ -157,10 +220,13 @@
     <div class="mt-4 flex justify-center">
         <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
             {% for page_num in range(1, total_pages + 1) %}
-            <a href="{{ url_for('admin.manage_questions', page=page_num) }}" 
-               class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium 
-                      {% if page_num == page %}bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200
-                      {% else %}bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}">
+            <a href="{{ url_for('admin.manage_questions', page=page_num, 
+                subject=request.args.get('subject'), difficulty=request.args.get('difficulty'),
+                type=request.args.get('type'), search=request.args.get('search'),
+                degree=request.args.get('degree')) }}" 
+                class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium 
+                       {% if page_num == page %}bg-indigo-50 border-indigo-500 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200
+                       {% else %}bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}">
                 {{ page_num }}
             </a>
             {% endfor %}
@@ -170,8 +236,54 @@
 </div>
 
 <script>
-document.getElementById('is_previous_year').addEventListener('change', function() {
-    document.getElementById('previousYearField').classList.toggle('hidden', !this.checked);
-});
+    // Show/hide previous year field based on checkbox
+    document.getElementById('is_previous_year').addEventListener('change', function() {
+        document.getElementById('previousYearField').classList.toggle('hidden', !this.checked);
+    });
+
+    // Handle filter changes
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle degree change to update subjects
+        document.getElementById('degree').addEventListener('change', function() {
+            const form = document.getElementById('filter-form');
+            // Reset other filters when degree changes
+            document.getElementById('subject').value = '';
+            document.getElementById('difficulty').value = '';
+            document.getElementById('type').value = '';
+            document.getElementById('search').value = '';
+            form.submit();
+        });
+        
+        // Apply filters when any filter is changed
+        document.getElementById('subject').addEventListener('change', function() {
+            // Submit the form to apply filters
+            document.getElementById('filter-form').submit();
+        });
+        
+        document.getElementById('difficulty').addEventListener('change', function() {
+            // Submit the form to apply filters
+            document.getElementById('filter-form').submit();
+        });
+        
+        document.getElementById('type').addEventListener('change', function() {
+            // Submit the form to apply filters
+            document.getElementById('filter-form').submit();
+        });
+        
+        // Initialize previous year field visibility
+        const isPreviousYear = document.getElementById('is_previous_year');
+        if (isPreviousYear) {
+            document.getElementById('previousYearField').classList.toggle('hidden', !isPreviousYear.checked);
+        }
+        
+        // Form change handling for degree in add modal
+        const formDegree = document.querySelector('form [name="degree"]');
+        if (formDegree) {
+            formDegree.addEventListener('change', function() {
+                // Submit the form to update the subjects dropdown
+                this.form.submit();
+            });
+        }
+    });
 </script>
 {% endblock %} 
