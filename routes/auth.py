@@ -10,6 +10,7 @@ import random
 import string
 from mysql.connector import Error
 from models import User
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -321,10 +322,15 @@ def create_auth_bp(limiter):
         form = InstitutionRegisterForm()
         if form.validate_on_submit():
             institution_name = sanitize_input(form.institution_name.data)
-            institution_code = sanitize_input(form.institution_code.data)
             username = sanitize_input(form.username.data)
             email = sanitize_input(form.email.data)
+            admin_name = sanitize_input(form.admin_name.data)
             password = form.password.data
+            
+            # Automatically generate institution code from institution name
+            institution_code = ''.join(c for c in institution_name if c.isalnum())[:10].upper()
+            # Add a timestamp-based suffix to ensure uniqueness
+            institution_code = f"{institution_code}{int(time.time())%10000}"
             
             conn = get_db_connection()
             if conn is None:
@@ -334,13 +340,6 @@ def create_auth_bp(limiter):
             cursor = conn.cursor(dictionary=True)
             
             try:
-                # Check if institution code already exists
-                cursor.execute('SELECT id FROM institutions WHERE institution_code = %s', 
-                             (institution_code,))
-                if cursor.fetchone():
-                    flash('Institution code already exists.', 'danger')
-                    return redirect(url_for('auth.institution_register'))
-                
                 # Check if username or email already exists
                 cursor.execute('SELECT id FROM users WHERE username = %s OR email = %s', 
                              (username, email))
@@ -362,8 +361,14 @@ def create_auth_bp(limiter):
                     VALUES (%s, %s, %s, %s)
                 ''', (institution_name, institution_code, user_id, email))
                 
+                # Set the admin_id for the institution
+                institution_id = cursor.lastrowid
+                cursor.execute('''
+                    UPDATE institutions SET admin_id = %s WHERE id = %s
+                ''', (user_id, institution_id))
+                
                 conn.commit()
-                flash('Registration successful! Please login.', 'success')
+                flash(f'Registration successful! Your institution code is {institution_code}. Please login.', 'success')
                 return redirect(url_for('auth.institution_login'))
                 
             except Error as err:

@@ -5,29 +5,44 @@
     <div class="max-w-2xl mx-auto">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8">Register Institution</h1>
         
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'danger' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
         <form method="POST" class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 space-y-6">
+            {{ form.csrf_token }}
             <div class="border-b pb-6">
                 <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Institution Details</h2>
                 <div class="space-y-4">
                     <div>
                         <label for="institution_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Institution Name</label>
-                        <input type="text" name="institution_name" id="institution_name" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        {{ form.institution_name(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                        {% if form.institution_name.errors %}
+                            <div class="text-red-600 text-sm mt-1">
+                                {% for error in form.institution_name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div>
-                        <label for="institution_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Institution Code</label>
-                        <input type="text" name="institution_code" id="institution_code" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                               pattern="[A-Za-z0-9]+" title="Only letters and numbers allowed"
-                               placeholder="e.g., PHARM001">
-                        <p class="mt-1 text-sm text-gray-500">Only letters and numbers, no spaces or special characters.</p>
-                    </div>
-                    
-                    <div>
-                        <label for="institution_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Institution Email</label>
-                        <input type="email" name="institution_email" id="institution_email" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Institution Email</label>
+                        {{ form.email(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                        {% if form.email.errors %}
+                            <div class="text-red-600 text-sm mt-1">
+                                {% for error in form.email.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500">This will be used for institutional communications</p>
                     </div>
                 </div>
             </div>
@@ -36,23 +51,40 @@
                 <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Admin Account Details</h2>
                 <div class="space-y-4">
                     <div>
-                        <label for="admin_username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Username</label>
-                        <input type="text" name="admin_username" id="admin_username" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <label for="admin_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Name</label>
+                        {{ form.admin_name(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                        {% if form.admin_name.errors %}
+                            <div class="text-red-600 text-sm mt-1">
+                                {% for error in form.admin_name.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div>
-                        <label for="admin_email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Email</label>
-                        <input type="email" name="admin_email" id="admin_email" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Username</label>
+                        {{ form.username(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500") }}
+                        {% if form.username.errors %}
+                            <div class="text-red-600 text-sm mt-1">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                     
                     <div>
-                        <label for="admin_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Password</label>
-                        <input type="password" name="admin_password" id="admin_password" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                               minlength="8">
-                        <p class="mt-1 text-sm text-gray-500">Minimum 8 characters</p>
+                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Password</label>
+                        {{ form.password(class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500", minlength="6") }}
+                        {% if form.password.errors %}
+                            <div class="text-red-600 text-sm mt-1">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500">Minimum 6 characters</p>
                     </div>
                 </div>
             </div>
@@ -62,10 +94,7 @@
                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     Cancel
                 </a>
-                <button type="submit"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                    Register Institution
-                </button>
+                {{ form.submit(class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700") }}
             </div>
         </form>
     </div>
